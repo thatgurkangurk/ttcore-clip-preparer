@@ -17,7 +17,7 @@ async fn ensure_out_dir_exists(config: &Config) -> Result<(), Box<dyn std::error
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let cli = Cli::try_parse().expect("expected cli to parse");
+    let cli = Cli::parse();
     let config = Config::load().expect("expected config to load");
 
     ensure_out_dir_exists(&config).await?;
