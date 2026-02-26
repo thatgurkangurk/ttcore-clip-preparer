@@ -4,6 +4,8 @@ use url::Url;
 use serde::{Deserialize, Serialize};
 use convert_case::{Case, Casing};
 use futures_util::StreamExt;
+use futures_util::stream;
+use std::sync::Arc;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClipsResponse {
@@ -55,51 +57,65 @@ pub async fn download_selected_files(
     video_id: i32,
     config: &Config,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let client = reqwest::Client::new();
-    let base_dir = &config.fs.out_dir;
+    let client = Arc::new(reqwest::Client::new());
+    let base_dir = Arc::new(config.fs.out_dir.clone());
 
     // Fetch clips
     let clips = fetch_clips(&client, video_id, config).await?;
 
-    for clip in clips.clips.into_iter().filter(|c| c.selected) {
-        println!("Downloading: {}", clip.title);
+    // Filter selected clips
+    let selected_clips: Vec<_> = clips.clips.into_iter().filter(|c| c.selected).collect();
 
-        // Convert author name to snake_case
-        let author_snake = clip.creator.username.to_case(Case::Snake);
+    stream::iter(selected_clips)
+        .for_each_concurrent(3, |clip| {
+            let client = Arc::clone(&client);
+            let base_dir = Arc::clone(&base_dir);
+            async move {
+                if let Err(e) = async {
+                    println!("Downloading: {}", clip.title);
 
-        // Build the output directory: out/{video_id}/{author_name_snake}/video
-        let video_dir = base_dir.join(video_id.to_string()).join(&author_snake).join("video");
-        tokio::fs::create_dir_all(&video_dir).await?;
+                    // Convert author name to snake_case
+                    let author_snake = clip.creator.username.to_case(Case::Snake);
 
-        // Write info.txt in out/{video_id}/{author_name_snake}/
-        let info_path = base_dir.join(video_id.to_string()).join(&author_snake).join("info.txt");
-        let mut info_file = tokio::fs::File::create(&info_path).await?;
-        info_file
-            .write_all(format!("{}\n@{}", clip.creator.name, clip.creator.username).as_bytes())
-            .await?;
+                    // Build directories
+                    let video_dir = base_dir.join(video_id.to_string()).join(&author_snake).join("video");
+                    tokio::fs::create_dir_all(&video_dir).await?;
 
-        // Determine filename from URL
-        let filename = clip
-            .url
-            .path_segments()
-            .and_then(|segments| segments.last())
-            .filter(|name| !name.is_empty())
-            .unwrap_or("video.mp4");
+                    // Write info.txt
+                    let info_path = base_dir.join(video_id.to_string()).join(&author_snake).join("info.txt");
+                    let mut info_file = tokio::fs::File::create(&info_path).await?;
+                    info_file
+                        .write_all(format!("{}\n@{}", clip.creator.name, clip.creator.username).as_bytes())
+                        .await?;
 
-        let path = video_dir.join(filename);
+                    // Determine filename from URL
+                    let filename = clip
+                        .url
+                        .path_segments()
+                        .and_then(|segments| segments.last())
+                        .filter(|name| !name.is_empty())
+                        .unwrap_or("video.mp4");
 
-        // Download the video
-        let response = client.get(clip.url.clone()).send().await?.error_for_status()?;
-        let mut file = tokio::fs::File::create(&path).await?;
-        let mut stream = response.bytes_stream();
+                    let path = video_dir.join(filename);
 
-        while let Some(chunk) = stream.next().await {
-            let chunk = chunk?;
-            file.write_all(&chunk).await?;
-        }
+                    // Download the video
+                    let response = client.get(clip.url.clone()).send().await?.error_for_status()?;
+                    let mut file = tokio::fs::File::create(&path).await?;
+                    let mut stream = response.bytes_stream();
 
-        println!("Saved to {}", path.display());
-    }
+                    while let Some(chunk) = stream.next().await {
+                        let chunk = chunk?;
+                        file.write_all(&chunk).await?;
+                    }
+
+                    println!("Saved to {}", path.display());
+                    Ok::<(), Box<dyn std::error::Error>>(())
+                }.await {
+                    eprintln!("Failed to download {}: {e}", clip.title);
+                }
+            }
+        })
+        .await;
 
     Ok(())
 }
