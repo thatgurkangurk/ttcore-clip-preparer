@@ -1,8 +1,7 @@
 use anyhow::{Context, Result};
 use indicatif::{ProgressBar, ProgressStyle};
-use regex::Regex;
 use std::fs;
-use std::io::{BufRead, BufReader};
+use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
@@ -58,8 +57,6 @@ pub fn burn_multiline_text_batch(base_folder: PathBuf, font_file: PathBuf) -> Re
         .progress_chars("##-"),
     );
 
-    let time_regex = Regex::new(r"time=(\d+:\d+:\d+\.\d+)")?;
-
     for (video_path, output_video, text) in tasks {
         let escaped_text = text
             .replace("\\", "\\\\")
@@ -73,17 +70,30 @@ pub fn burn_multiline_text_batch(base_folder: PathBuf, font_file: PathBuf) -> Re
             .to_string()
             .replace("\\", "\\\\");
 
+        let font_size = 34;
+        let line_spacing = 6;
+
+        let padding_right = 50;
+        let padding_bottom = 40;
+
         let drawtext_filter = format!(
             "drawtext=\
 fontfile='{}':\
 text='{}':\
 fontcolor=white@0.75:\
-fontsize=24:\
-x=w-tw-50:\
-y=h-th-40:\
-line_spacing=6:\
+fontsize={}:\
+x=w-(tw+{}):\
+y=h-(th+{}):\
+line_spacing={}:\
 text_align=2",
-            font_path, escaped_text
+            font_path, escaped_text, font_size, padding_right, padding_bottom, line_spacing
+        );
+
+        let drawtext_and_scale_filter = format!(
+            "scale=1920:1080:force_original_aspect_ratio=decrease,\
+pad=1920:1080:(ow-iw)/2:(oh-ih)/2,\
+{}",
+            drawtext_filter
         );
 
         pb.set_message(format!(
@@ -91,43 +101,56 @@ text_align=2",
             video_path.file_name().unwrap().to_string_lossy()
         ));
 
-        let mut cmd = Command::new("ffmpeg")
+        use std::io::Read;
+
+        let error_log_path = output_video.with_extension("mp4.error.log");
+
+        let mut child = Command::new("ffmpeg")
             .args([
                 "-y",
                 "-i",
                 &video_path.to_string_lossy(),
                 "-vf",
-                &drawtext_filter,
+                &drawtext_and_scale_filter,
+                "-c:v",
+                "libx264",
+                "-preset",
+                "fast",
+                "-crf",
+                "23",
+                "-pix_fmt",
+                "yuv420p",
+                "-movflags",
+                "+faststart",
+                "-r",
+                "30",
+                "-map",
+                "0:v:0",
+                "-map",
+                "0:a?",
                 "-c:a",
-                "copy",
-                "-progress",
-                "pipe:2",
-                "-nostats",
+                "aac",
+                "-b:a",
+                "192k",
                 &output_video.to_string_lossy(),
             ])
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
-            .spawn()?;
+            .spawn()
+            .context("Failed to spawn ffmpeg")?;
 
-        let stderr = cmd.stderr.take().context("Failed to capture stderr")?;
-        let reader = BufReader::new(stderr);
+        let mut stderr_output = String::new();
 
-        for line in reader.lines() {
-            let line = line?;
-
-            if let Some(cap) = time_regex.captures(&line) {
-                pb.set_message(format!("time {}", &cap[1]));
-            }
-
-            if line.contains("progress=end") {
-                break;
-            }
+        if let Some(stderr) = child.stderr.take() {
+            let mut reader = BufReader::new(stderr);
+            reader.read_to_string(&mut stderr_output)?;
         }
 
-        let status = cmd.wait()?;
+        let status = child.wait()?;
 
         if !status.success() {
             eprintln!("FFmpeg failed for {:?}", video_path);
+            fs::write(&error_log_path, stderr_output)?;
         }
 
         pb.inc(1);
