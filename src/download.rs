@@ -102,7 +102,7 @@ pub async fn download_selected_files(
                     let filename = clip
                         .url
                         .path_segments()
-                        .and_then(|segments| segments.last())
+                        .and_then(|mut segments| segments.next_back())
                         .filter(|name| !name.is_empty())
                         .unwrap_or("video.mp4");
 
