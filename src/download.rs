@@ -2,6 +2,8 @@ use crate::config::Config;
 use tokio::io::AsyncWriteExt;
 use url::Url;
 use serde::{Deserialize, Serialize};
+use convert_case::{Case, Casing};
+use futures_util::StreamExt;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClipsResponse {
@@ -54,21 +56,29 @@ pub async fn download_selected_files(
     config: &Config,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
-    let output_dir = &config.fs.out_dir;
+    let base_dir = &config.fs.out_dir;
 
-    tokio::fs::create_dir_all(output_dir).await?;
-
+    // Fetch clips
     let clips = fetch_clips(&client, video_id, config).await?;
 
     for clip in clips.clips.into_iter().filter(|c| c.selected) {
         println!("Downloading: {}", clip.title);
 
-        let response = client
-            .get(clip.url.clone())
-            .send()
-            .await?
-            .error_for_status()?;
+        // Convert author name to snake_case
+        let author_snake = clip.creator.username.to_case(Case::Snake);
 
+        // Build the output directory: out/{video_id}/{author_name_snake}/video
+        let video_dir = base_dir.join(video_id.to_string()).join(&author_snake).join("video");
+        tokio::fs::create_dir_all(&video_dir).await?;
+
+        // Write info.txt in out/{video_id}/{author_name_snake}/
+        let info_path = base_dir.join(video_id.to_string()).join(&author_snake).join("info.txt");
+        let mut info_file = tokio::fs::File::create(&info_path).await?;
+        info_file
+            .write_all(format!("{}\n@{}", clip.creator.name, clip.creator.username).as_bytes())
+            .await?;
+
+        // Determine filename from URL
         let filename = clip
             .url
             .path_segments()
@@ -76,12 +86,12 @@ pub async fn download_selected_files(
             .filter(|name| !name.is_empty())
             .unwrap_or("video.mp4");
 
-        let path = output_dir.join(filename);
+        let path = video_dir.join(filename);
 
+        // Download the video
+        let response = client.get(clip.url.clone()).send().await?.error_for_status()?;
         let mut file = tokio::fs::File::create(&path).await?;
         let mut stream = response.bytes_stream();
-
-        use futures_util::StreamExt;
 
         while let Some(chunk) = stream.next().await {
             let chunk = chunk?;
