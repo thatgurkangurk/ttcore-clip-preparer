@@ -8,6 +8,7 @@ pub struct ApiConfig {
 #[derive(Debug, Deserialize)]
 pub struct FsConfig {
     pub out_dir: std::path::PathBuf,
+    pub font_file: std::path::PathBuf,
 }
 
 
