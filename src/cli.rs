@@ -15,8 +15,8 @@ pub enum Commands {
     },
     BurnCredits {
         #[arg(long)]
-        video_id: i32
+        video_id: i32,
     },
     Clean,
-    CleanBurned
+    CleanBurned,
 }

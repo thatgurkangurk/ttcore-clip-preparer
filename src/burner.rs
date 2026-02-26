@@ -1,4 +1,4 @@
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use indicatif::{ProgressBar, ProgressStyle};
 use regex::Regex;
 use std::fs;
@@ -6,11 +6,7 @@ use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
-pub fn burn_multiline_text_batch(
-    base_folder: PathBuf,
-    font_file: PathBuf,
-) -> Result<()> {
-
+pub fn burn_multiline_text_batch(base_folder: PathBuf, font_file: PathBuf) -> Result<()> {
     let mut tasks: Vec<(PathBuf, PathBuf, String)> = Vec::new();
 
     // Collect all video jobs first
@@ -57,7 +53,7 @@ pub fn burn_multiline_text_batch(
     let pb = ProgressBar::new(tasks.len() as u64);
     pb.set_style(
         ProgressStyle::with_template(
-            "[{elapsed_precise}] [{bar:40.green/blue}] {pos}/{len} ({eta}) {msg}"
+            "[{elapsed_precise}] [{bar:40.green/blue}] {pos}/{len} ({eta}) {msg}",
         )?
         .progress_chars("##-"),
     );
@@ -65,7 +61,6 @@ pub fn burn_multiline_text_batch(
     let time_regex = Regex::new(r"time=(\d+:\d+:\d+\.\d+)")?;
 
     for (video_path, output_video, text) in tasks {
-
         let escaped_text = text
             .replace("\\", "\\\\")
             .replace(":", "\\:")
@@ -88,8 +83,7 @@ x=w-tw-50:\
 y=h-th-40:\
 line_spacing=6:\
 text_align=2",
-            font_path,
-            escaped_text
+            font_path, escaped_text
         );
 
         pb.set_message(format!(

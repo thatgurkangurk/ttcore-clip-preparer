@@ -11,11 +11,10 @@ pub struct FsConfig {
     pub font_file: std::path::PathBuf,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub api: ApiConfig,
-    pub fs: FsConfig
+    pub fs: FsConfig,
 }
 
 impl Config {
