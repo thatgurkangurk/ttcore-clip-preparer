@@ -1,6 +1,10 @@
 # gurkan's ttcore preparer tool
 
-**note!::** this is mainly intended for private use
+> [!IMPORTANT]
+> you need ffmpeg installed for this tool to work (the credit burn-in)
+
+> [!NOTE]
+> this is mainly intended for private usage, so don't expect this tool to be very useful for other tasks
 
 this automates the tedious parts of creating my traitor town core videos by doing the following
 
