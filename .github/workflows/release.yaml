@@ -6,34 +6,57 @@ on:
 permissions:
   contents: write
 
+env:
+  CARGO_TERM_COLOR: always
+  BIN_NAME: ttcore-clip-preparer
+
 jobs:
   build:
     name: Build (${{ matrix.target }})
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         target:
           - x86_64-unknown-linux-gnu
           - x86_64-pc-windows-gnu
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          profile: minimal
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust dependencies + target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+          shared-key: "release-cross"
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
+
+      - name: Cache cross install
+        id: cache-cross
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cross
+          key: cross-${{ runner.os }}-stable
 
       - name: Install cross
+        if: steps.cache-cross.outputs.cache-hit != 'true'
         run: cargo install cross --locked
 
       - name: Build with cross
         run: cross build --release --target ${{ matrix.target }}
 
-      - name: Prepare binary name
+      - name: Prepare binary
         id: prep
         run: |
-          BIN_NAME="ttcore-clip-preparer"
           TARGET="${{ matrix.target }}"
 
           if [[ "$TARGET" == *"windows"* ]]; then
@@ -54,25 +77,93 @@ jobs:
           path: ${{ steps.prep.outputs.out_name }}
 
   release:
-    name: Create Release
+    name: Strict SemVer Release
     needs: build
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # REQUIRED for tag + history inspection
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Generate date
-        id: date
-        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+      - name: Extract version from Cargo.toml
+        id: version
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -n1 | sed 's/version = "\(.*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Determine previous tag
+        id: prev
+        run: |
+          git fetch --tags
+          PREV_TAG=$(git tag --sort=-v:refname | head -n1 || true)
+          echo "prev_tag=$PREV_TAG" >> $GITHUB_OUTPUT
+
+      - name: Enforce semver + version change
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="v$VERSION"
+
+          echo "Current version: $VERSION"
+          echo "Previous tag: ${{ steps.prev.outputs.prev_tag }}"
+
+          # Fail if tag already exists
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "❌ Tag $TAG already exists. Bump version before releasing."
+            exit 1
+          fi
+
+          # Fail if version unchanged from previous tag
+          if [ "${{ steps.prev.outputs.prev_tag }}" = "$TAG" ]; then
+            echo "❌ Version has not changed since last release."
+            exit 1
+          fi
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="v$VERSION"
+          PREV="${{ steps.prev.outputs.prev_tag }}"
+
+          if [ -z "$PREV" ]; then
+            echo "No previous tag found. Including all commits."
+            LOG=$(git log --pretty=format:"- %s (%h)")
+          else
+            LOG=$(git log "$PREV"..HEAD --pretty=format:"- %s (%h)")
+          fi
+
+          echo "Generating changelog:"
+          echo "$LOG"
+
+          {
+            echo "changelog<<EOF"
+            echo "## Changes"
+            echo ""
+            echo "$LOG"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Create tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="v$VERSION"
+          git tag "$TAG"
+          git push origin "$TAG"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: ttcore-clip-preparer ${{ steps.date.outputs.date }}
-          tag_name: ttcore-clip-preparer-${{ steps.date.outputs.date }}
+          tag_name: v${{ steps.version.outputs.version }}
+          name: ttcore-clip-preparer v${{ steps.version.outputs.version }}
+          body: ${{ steps.changelog.outputs.changelog }}
           files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
