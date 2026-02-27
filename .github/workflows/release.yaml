@@ -1,62 +1,78 @@
-name: release
+name: Build and Release Rust Binaries
 
 on:
-  push:
-    tags:
-      - 'v[0-9]+\.[0-9]+\.[0-9]+'
-      - 'v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+'
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
-    name: build
+    name: Build (${{ matrix.target }})
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
-        include:
-          - rust_target: x86_64-unknown-linux-gnu
-            artifact_name: ttcore-clip-preparer
-          - rust_target: x86_64-pc-windows-gnu
-            artifact_name: ttcore-clip-preparer.exe
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-pc-windows-gnu
 
     steps:
-      - name: checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Rust
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-          target: ${{ matrix.rust_target }}
 
-      - name: Install mingw for Windows cross-compilation
-        if: matrix.rust_target == 'x86_64-pc-windows-gnu'
-        run: sudo apt-get install -y gcc-mingw-w64-x86–64
+      - name: Install cross
+        run: cargo install cross --locked
 
-      - name: Build the binary
+      - name: Build with cross
+        run: cross build --release --target ${{ matrix.target }}
+
+      - name: Prepare binary name
+        id: prep
         run: |
-          cargo build - release - target ${{ matrix.rust_target }}
-          if [[ "${{ matrix.artifact_name }}" == *.exe ]]; then
-            mv target/${{ matrix.rust_target }}/release/ttcore-clip-preparer.exe ${{ matrix.artifact_name }}
+          BIN_NAME="ttcore-clip-preparer"
+          TARGET="${{ matrix.target }}"
+
+          if [[ "$TARGET" == *"windows"* ]]; then
+            EXT=".exe"
           else
-            mv target/${{ matrix.rust_target }}/release/ttcore-clip-preparer ${{ matrix.artifact_name }}
+            EXT=""
           fi
 
-      - name: determine tag type
-        id: tag_type
-        run: |
-          if [[ ${{ github.ref }} =~ ^refs/tags/v[0–9]+\.[0–9]+\.[0–9]+-rc[0–9]+$ ]]; then
-            echo "tag_type=PRE_RELEASE_TAG" >> $GITHUB_OUTPUT
-          elif [[ ${{ github.ref }} =~ ^refs/tags/v[0–9]+\.[0–9]+\.[0–9]+$ ]]; then
-            echo "tag_type=RELEASE_TAG" >> $GITHUB_OUTPUT
-          else
-            echo "tag_type=INVALID_TAG" >> $GITHUB_OUTPUT
-          fi
+          OUT_NAME="${BIN_NAME}-${TARGET}${EXT}"
+          cp target/${TARGET}/release/${BIN_NAME}${EXT} ${OUT_NAME}
 
-      - name: upload binaries to release
-        if: steps.tag_type.outputs.tag_type != 'INVALID_TAG'
-        uses: svenstaro/upload-release-action@v2
+          echo "out_name=${OUT_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          file: ${{ matrix.artifact_name }}
-          overwrite: true
-          prerelease: ${{ steps.tag_type.outputs.tag_type == 'PRE_RELEASE_TAG' }}
-          tag: ${{ github.ref }}
+          name: ${{ steps.prep.outputs.out_name }}
+          path: ${{ steps.prep.outputs.out_name }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate date
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ttcore-clip-preparer ${{ steps.date.outputs.date }}
+          tag_name: ttcore-clip-preparer-${{ steps.date.outputs.date }}
+          files: artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
