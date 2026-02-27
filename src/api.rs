@@ -1,6 +1,7 @@
 use crate::config::Config;
-use url::Url;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClipsResponse {
@@ -33,17 +34,21 @@ const API_BASE_URL: &str = "https://ttcore.gurkz.me";
 pub async fn fetch_clips_for_video(
     client: &reqwest::Client,
     video_id: i32,
-    config: &Config
-) -> Result<ClipsResponse, reqwest::Error> {
-   let response = client
-        .get(
-            format!("{API_BASE_URL}/api/videos/{video_id}/list")
-        )         .header("x-api-key", &config.api.key)
+    config: &Config,
+) -> Result<ClipsResponse> {
+    let response = client
+        .get(format!("{API_BASE_URL}/api/videos/{video_id}/list"))
+        .header("x-api-key", &config.api.key)
         .send()
-        .await?
-        .error_for_status()?;
+        .await
+        .context("failed to send request")?
+        .error_for_status()
+        .context("request returned error status")?;
 
-    let clips = response.json::<ClipsResponse>().await?;
+    let clips = response
+        .json::<ClipsResponse>()
+        .await
+        .context("failed to deserialise ClipsResponse")?;
 
     Ok(clips)
 }
