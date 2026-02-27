@@ -1,3 +1,4 @@
+mod api;
 mod burner;
 mod cli;
 mod config;

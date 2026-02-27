@@ -2,55 +2,8 @@ use crate::config::Config;
 use convert_case::{Case, Casing};
 use futures_util::StreamExt;
 use futures_util::stream;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
-use url::Url;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ClipsResponse {
-    pub clips: Vec<Clip>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Clip {
-    pub id: String,
-    pub created_by_id: String,
-    pub video_id: i32,
-    pub url: Url,
-    pub title: String,
-    pub selected: bool,
-    pub created_at: String,
-    pub creator: Creator,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Creator {
-    pub id: String,
-    pub name: String,
-    pub username: String,
-}
-
-async fn fetch_clips(
-    client: &reqwest::Client,
-    video_id: i32,
-    config: &Config,
-) -> Result<ClipsResponse, reqwest::Error> {
-    let response = client
-        .get(format!(
-            "https://ttcore.gurkz.me/api/videos/{video_id}/list"
-        ))
-        .header("x-api-key", &config.api.key)
-        .send()
-        .await?
-        .error_for_status()?;
-
-    let clips = response.json::<ClipsResponse>().await?;
-
-    Ok(clips)
-}
 
 /// downloads selected files from ttcore.gurkz.me
 ///
@@ -63,7 +16,7 @@ pub async fn download_selected_files(
     let base_dir = Arc::new(config.fs.out_dir.clone());
 
     // Fetch clips
-    let clips = fetch_clips(&client, video_id, config).await?;
+    let clips = crate::api::fetch_clips_for_video(&client, video_id, config).await?;
 
     // Filter selected clips
     let selected_clips: Vec<_> = clips.clips.into_iter().filter(|c| c.selected).collect();
