@@ -1,23 +1,22 @@
 use crate::config::Config;
+use anyhow::{Context, Result};
 use convert_case::{Case, Casing};
 use futures_util::StreamExt;
 use futures_util::stream;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
-use anyhow::{Result, Context};
 
 /// downloads selected files from ttcore.gurkz.me
 ///
 /// selected in this case means the ones marked on the frontend as "selected"
-pub async fn download_selected_files(
-    video_id: i32,
-    config: &Config,
-) -> Result<()> {
+pub async fn download_selected_files(video_id: i32, config: &Config) -> Result<()> {
     let client = Arc::new(reqwest::Client::new());
     let base_dir = Arc::new(config.fs.out_dir.clone());
 
     // Fetch clips
-    let clips = crate::api::fetch_clips_for_video(&client, video_id, config).await.context("failed to fetch clips")?;
+    let clips = crate::api::fetch_clips_for_video(&client, video_id, config)
+        .await
+        .context("failed to fetch clips")?;
 
     // Filter selected clips
     let selected_clips: Vec<_> = clips.clips.into_iter().filter(|c| c.selected).collect();

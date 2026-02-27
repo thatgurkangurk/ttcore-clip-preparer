@@ -1,5 +1,5 @@
+use anyhow::{Context, Result};
 use serde::Deserialize;
-use anyhow::{Result, Context};
 
 #[derive(Debug, Deserialize)]
 pub struct ApiConfig {
@@ -26,6 +26,8 @@ impl Config {
             .build()
             .context("failed to load the config")?;
 
-        settings.try_deserialize().context("failed to deserialise the config")
+        settings
+            .try_deserialize()
+            .context("failed to deserialise the config")
     }
 }
