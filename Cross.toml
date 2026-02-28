@@ -1,6 +1,7 @@
 [build]
 default-target = "x86_64-unknown-linux-gnu"
 pre-build = [
+    "add-apt-repository ppa:ubuntu-toolchain-r/test",
     "apt-get update && apt-get install --assume-yes --no-install-recommends gcc-12 g++-12 lld"
 ]
 
