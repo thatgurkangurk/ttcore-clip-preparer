@@ -63,12 +63,19 @@ jobs:
       # Build (Fast + Parallel)
       # ------------------------
       - name: Build
+        shell: bash
         run: |
-          export RUSTFLAGS="-C link-arg=-fuse-ld=mold"
+          TARGET="${{ matrix.target }}"
 
-          cross build \
-            --release \
-            --target ${{ matrix.target }}
+          if [[ "$TARGET" == *windows* ]]; then
+            export RUSTFLAGS="-C link-arg=-Wl,--thinlto-jobs=2"
+          fi
+
+          if [[ "$TARGET" == *linux* ]]; then
+            export RUSTFLAGS="-C link-arg=-fuse-ld=mold"
+          fi
+
+          cross build --release --target $TARGET
 
       # ------------------------
       # Package Binary
