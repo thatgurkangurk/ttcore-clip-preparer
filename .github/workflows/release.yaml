@@ -72,7 +72,7 @@ jobs:
           fi
 
           if [[ "$TARGET" == *linux* ]]; then
-            export RUSTFLAGS="-C link-arg=-fuse-ld=mold"
+            export RUSTFLAGS="-C link-arg=-fuse-ld=/usr/bin/mold"
           fi
 
           cross build --release --target $TARGET
