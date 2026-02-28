@@ -3,6 +3,7 @@ mod burner;
 mod cli;
 mod config;
 mod download;
+mod update;
 
 use clap::Parser;
 
@@ -111,6 +112,9 @@ async fn main() -> Result<()> {
             clean_burned_dirs(&path)
                 .await
                 .context("Failed to clean burned directories")?;
+        }
+        Some(cli::Commands::Update) => {
+            crate::update::update()?
         }
         None => {}
     }

@@ -19,4 +19,5 @@ pub enum Commands {
     },
     Clean,
     CleanBurned,
+    Update
 }
