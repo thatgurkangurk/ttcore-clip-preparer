@@ -10,8 +10,8 @@ config = "0.15.19"
 convert_case = "0.11.0"
 futures-util = "0.3.32"
 indicatif = "0.18.4"
-reqwest = { version = "0.13.2", features = ["json", "rustls", "stream"] }
-self_update = { version = "0.42.0", features = ["rustls"]}
+reqwest = { version = "0.13.2", default-features = false, features = ["json", "rustls", "stream"] }
+self_update = { version = "0.42.0", default-features = false, features = ["rustls"] }
 serde = { version = "1.0.228", features = ["derive"] }
 tokio = { version = "1.49.0", features = ["fs", "macros", "rt-multi-thread"] }
 url = { version = "2.5.8", features = ["serde"] }
