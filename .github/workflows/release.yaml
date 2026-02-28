@@ -59,6 +59,10 @@ jobs:
             cargo install cross --locked --quiet
           fi
 
+          cargo install -f cargo-binutils
+          rustup component add llvm-tools-preview
+
+
       # ------------------------
       # Build (Fast + Parallel)
       # ------------------------
@@ -66,14 +70,6 @@ jobs:
         shell: bash
         run: |
           TARGET="${{ matrix.target }}"
-
-          if [[ "$TARGET" == *windows* ]]; then
-            export RUSTFLAGS="-C link-arg=-Wl,--thinlto-jobs=2"
-          fi
-
-          if [[ "$TARGET" == *linux* ]]; then
-            export RUSTFLAGS="-C link-arg=-fuse-ld=/usr/bin/mold"
-          fi
 
           cross build --release --target $TARGET
 

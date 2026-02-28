@@ -2,3 +2,4 @@
 config.toml
 /out
 /data
+!.cargo/config.toml
