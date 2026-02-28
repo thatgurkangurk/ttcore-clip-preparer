@@ -12,7 +12,6 @@ env:
 
 jobs:
   build:
-    name: Build (${{ matrix.target }})
     runs-on: ubuntu-latest
 
     strategy:
@@ -25,6 +24,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ------------------------
+      # Rust Toolchain
+      # ------------------------
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -32,64 +34,70 @@ jobs:
           targets: ${{ matrix.target }}
 
       # ------------------------
-      # Target-specific Rust cache
+      # Mold linker (Huge speed gain)
+      # ------------------------
+      - name: Install Mold
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mold clang
+
+      # ------------------------
+      # Rust Cache
       # ------------------------
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.target }}-release
-          workspaces: |
-            . -> target
+          key: ${{ matrix.target }}-fast
+          cache-all-crates: true
 
       # ------------------------
-      # Cache Cross separately
+      # Cross install (cached)
       # ------------------------
-      - name: Cache Cross
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/cross
-          key: cross-${{ runner.os }}
-
       - name: Install Cross
-        if: steps.cache-cross.outputs.cache-hit != 'true'
-        run: cargo install cross --locked
+        run: |
+          if ! command -v cross >/dev/null; then
+            cargo install cross --locked --quiet
+          fi
 
       # ------------------------
-      # Build
+      # Build (Fast + Parallel)
       # ------------------------
-      - name: Build with Cross
-        run: cross build --release --target ${{ matrix.target }}
+      - name: Build
+        run: |
+          export RUSTFLAGS="-C link-arg=-fuse-ld=mold"
+
+          cross build \
+            --release \
+            --target ${{ matrix.target }}
 
       # ------------------------
-      # Prepare Binary
+      # Package Binary
       # ------------------------
-      - name: Prepare binary
+      - name: Prepare Artifact
         id: prep
         shell: bash
         run: |
           TARGET="${{ matrix.target }}"
 
-          if [[ "$TARGET" == *"windows"* ]]; then
+          if [[ "$TARGET" == *windows* ]]; then
             EXT=".exe"
           else
             EXT=""
           fi
 
-          OUT_NAME="${BIN_NAME}-${TARGET}${EXT}"
+          OUT="${BIN_NAME}-${TARGET}${EXT}"
 
-          cp target/${TARGET}/release/${BIN_NAME}${EXT} ./${OUT_NAME}
+          cp target/${TARGET}/release/${BIN_NAME}${EXT} $OUT
 
-          echo "out_name=${OUT_NAME}" >> $GITHUB_OUTPUT
+          echo "out_name=$OUT" >> $GITHUB_OUTPUT
 
-      - name: Upload artifact
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.prep.outputs.out_name }}
           path: ${{ steps.prep.outputs.out_name }}
 
   release:
-    name: Strict SemVer Release
     needs: build
     runs-on: ubuntu-latest
 
@@ -103,39 +111,35 @@ jobs:
         with:
           path: artifacts
 
-      - name: Extract version
+      # ------------------------
+      # Version + Tag Validation
+      # ------------------------
+      - name: Extract Version
         id: version
         run: |
           VERSION=$(grep '^version' Cargo.toml | head -n1 | sed 's/version = "\(.*\)"/\1/')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Determine previous tag
-        id: prev
-        run: |
-          git fetch --tags
-          PREV_TAG=$(git tag --sort=-v:refname | head -n1 || true)
-          echo "prev_tag=$PREV_TAG" >> $GITHUB_OUTPUT
-
-      - name: Enforce SemVer Rules
+      - name: Enforce Version Change
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           TAG="v$VERSION"
 
+          git fetch --tags
+
           if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "❌ Tag already exists"
+            echo "Tag already exists"
             exit 1
           fi
 
-          if [ "${{ steps.prev.outputs.prev_tag }}" = "$TAG" ]; then
-            echo "❌ Version not bumped"
-            exit 1
-          fi
-
+      # ------------------------
+      # Changelog
+      # ------------------------
       - name: Generate Changelog
         id: changelog
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          PREV="${{ steps.prev.outputs.prev_tag }}"
+          PREV=$(git tag --sort=-v:refname | head -n1 || true)
 
           if [ -z "$PREV" ]; then
             LOG=$(git log --pretty=format:"- %s (%h)")
@@ -149,15 +153,10 @@ jobs:
           echo "$LOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Create Tag
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          TAG="v$VERSION"
-
-          git tag "$TAG"
-          git push origin "$TAG"
-
-      - name: GitHub Release
+      # ------------------------
+      # Release Publish
+      # ------------------------
+      - name: Create Tag + Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
