@@ -1,9 +1,24 @@
 [build]
 default-target = "x86_64-unknown-linux-gnu"
 pre-build = [
+    # from https://gist.github.com/cajuntai/ecafd001aeedbe44cc6f9f08987f3873
+    "apt-get update",
+    "apt-get install --assume-yes --no-install-recommends wget tar",
+
+    # Download mold
+    "wget -q https://github.com/rui314/mold/releases/download/v2.40.4/mold-2.40.4-x86_64-linux.tar.gz",
+
+    # Extract
+    "tar -xvf mold-2.40.4-x86_64-linux.tar.gz",
+
+    # Install into /usr
+    "cp -r mold-2.40.4-x86_64-linux/bin/* /usr/bin/",
+    "cp -r mold-2.40.4-x86_64-linux/lib/* /usr/lib/",
+    "cp -r mold-2.40.4-x86_64-linux/libexec/* /usr/libexec/",
+    "cp -r mold-2.40.4-x86_64-linux/share/* /usr/share/",
     "apt-get update",
     "apt-get install --assume-yes --no-install-recommends clang lld",
-    "update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100"
+    "update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100",
 ]
 
 [target.x86_64-unknown-linux-gnu]
