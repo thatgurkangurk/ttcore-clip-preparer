@@ -23,6 +23,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cross
 
       # ------------------------
       # Rust Toolchain
@@ -30,9 +33,8 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           targets: ${{ matrix.target }}
-          
+
       # ------------------------
       # Rust Cache
       # ------------------------
@@ -42,15 +44,8 @@ jobs:
           key: ${{ matrix.target }}-fast
           cache-all-crates: true
 
-      # ------------------------
-      # Cross install (cached)
-      # ------------------------
-      - name: Install Cross
+      - name: Install cargo-binutils & llvm-tools-preview
         run: |
-          if ! command -v cross >/dev/null; then
-            cargo install cross --locked --quiet
-          fi
-
           cargo install -f cargo-binutils
           rustup component add llvm-tools-preview
 
