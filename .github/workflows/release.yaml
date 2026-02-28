@@ -31,31 +31,42 @@ jobs:
           profile: minimal
           targets: ${{ matrix.target }}
 
-      - name: Cache Rust dependencies + target
+      # ------------------------
+      # Target-specific Rust cache
+      # ------------------------
+      - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
+          key: ${{ matrix.target }}-release
           workspaces: |
             . -> target
-          shared-key: "release-cross"
-          cache-on-failure: true
-          save-if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
 
-      - name: Cache cross install
-        id: cache-cross
+      # ------------------------
+      # Cache Cross separately
+      # ------------------------
+      - name: Cache Cross
         uses: actions/cache@v4
         with:
-          path: ~/.cargo/bin/cross
-          key: cross-${{ runner.os }}-stable
+          path: |
+            ~/.cargo/bin/cross
+          key: cross-${{ runner.os }}
 
-      - name: Install cross
+      - name: Install Cross
         if: steps.cache-cross.outputs.cache-hit != 'true'
         run: cargo install cross --locked
 
-      - name: Build with cross
+      # ------------------------
+      # Build
+      # ------------------------
+      - name: Build with Cross
         run: cross build --release --target ${{ matrix.target }}
 
+      # ------------------------
+      # Prepare Binary
+      # ------------------------
       - name: Prepare binary
         id: prep
+        shell: bash
         run: |
           TARGET="${{ matrix.target }}"
 
@@ -66,7 +77,8 @@ jobs:
           fi
 
           OUT_NAME="${BIN_NAME}-${TARGET}${EXT}"
-          cp target/${TARGET}/release/${BIN_NAME}${EXT} ${OUT_NAME}
+
+          cp target/${TARGET}/release/${BIN_NAME}${EXT} ./${OUT_NAME}
 
           echo "out_name=${OUT_NAME}" >> $GITHUB_OUTPUT
 
@@ -84,14 +96,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # REQUIRED for tag + history inspection
+          fetch-depth: 0
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Extract version from Cargo.toml
+      - name: Extract version
         id: version
         run: |
           VERSION=$(grep '^version' Cargo.toml | head -n1 | sed 's/version = "\(.*\)"/\1/')
@@ -104,61 +116,48 @@ jobs:
           PREV_TAG=$(git tag --sort=-v:refname | head -n1 || true)
           echo "prev_tag=$PREV_TAG" >> $GITHUB_OUTPUT
 
-      - name: Enforce semver + version change
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Enforce SemVer Rules
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           TAG="v$VERSION"
 
-          echo "Current version: $VERSION"
-          echo "Previous tag: ${{ steps.prev.outputs.prev_tag }}"
-
-          # Fail if tag already exists
           if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "❌ Tag $TAG already exists. Bump version before releasing."
+            echo "❌ Tag already exists"
             exit 1
           fi
 
-          # Fail if version unchanged from previous tag
           if [ "${{ steps.prev.outputs.prev_tag }}" = "$TAG" ]; then
-            echo "❌ Version has not changed since last release."
+            echo "❌ Version not bumped"
             exit 1
           fi
 
-      - name: Generate changelog
+      - name: Generate Changelog
         id: changelog
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          TAG="v$VERSION"
           PREV="${{ steps.prev.outputs.prev_tag }}"
 
           if [ -z "$PREV" ]; then
-            echo "No previous tag found. Including all commits."
             LOG=$(git log --pretty=format:"- %s (%h)")
           else
             LOG=$(git log "$PREV"..HEAD --pretty=format:"- %s (%h)")
           fi
 
-          echo "Generating changelog:"
-          echo "$LOG"
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "## Changes" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "$LOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
-          {
-            echo "changelog<<EOF"
-            echo "## Changes"
-            echo ""
-            echo "$LOG"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
-
-      - name: Create tag
+      - name: Create Tag
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           TAG="v$VERSION"
+
           git tag "$TAG"
           git push origin "$TAG"
 
-      - name: Create GitHub Release
+      - name: GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
