@@ -3,3 +3,6 @@ default-target = "x86_64-unknown-linux-gnu"
 pre-build = [
     "apt-get update && apt-get install --assume-yes --no-install-recommends clang lld"
 ]
+
+[target.x86_64-unknown-linux-gnu]
+image = "ghcr.io/cross-rs/x86_64-unknown-linux-gnu:0.2.5"
