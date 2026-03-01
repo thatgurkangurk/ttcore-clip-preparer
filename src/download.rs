@@ -10,8 +10,8 @@ use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 /// downloads selected files from ttcore.gurkz.me
 ///
 /// selected in this case means the ones marked on the frontend as "selected"
-pub async fn download_selected_files(video_id: i32, config: &Config) -> Result<()> {
-    let client = Arc::new(reqwest::Client::new());
+pub async fn download_selected_files(video_id: i32, config: &Config, client: &reqwest::Client) -> Result<()> {
+    let client = Arc::new(client);
     let base_dir = Arc::new(config.fs.out_dir.clone());
 
     let clips = crate::api::fetch_clips_for_video(&client, video_id, config)

@@ -4,67 +4,21 @@ mod cli;
 mod config;
 mod download;
 mod update;
+mod fs;
 
 use clap::Parser;
 
 use crate::cli::Cli;
 use crate::config::Config;
 use anyhow::{Context, Result};
-use std::path::Path;
-use tokio::fs;
-use tokio::io;
 
-async fn ensure_out_dir_exists(config: &Config) -> Result<()> {
-    let path = &config.fs.out_dir;
-
-    tokio::fs::create_dir_all(&path)
-        .await
-        .context("failed to create the output directory")?;
-
-    Ok(())
-}
-
-async fn clean_burned_dirs(base_folder: &Path) -> io::Result<()> {
-    let mut level1 = fs::read_dir(base_folder).await?;
-
-    while let Some(entry1) = level1.next_entry().await? {
-        let path1 = entry1.path();
-        if !path1.is_dir() {
-            continue;
-        }
-
-        let mut level2 = fs::read_dir(&path1).await?;
-
-        while let Some(entry2) = level2.next_entry().await? {
-            let path2 = entry2.path();
-            if !path2.is_dir() {
-                continue;
-            }
-
-            let mut level3 = fs::read_dir(&path2).await?;
-
-            while let Some(entry3) = level3.next_entry().await? {
-                let path3 = entry3.path();
-
-                if path3.is_dir()
-                    && path3
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .is_some_and(|name| name == "burned")
-                {
-                    fs::remove_dir_all(&path3).await?;
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
+use crate::fs::{clean_burned_dirs, ensure_out_dir_exists};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
     let config = Config::load().context("failed to load configuration")?;
+    let reqwest_client = reqwest::Client::new();
 
     ensure_out_dir_exists(&config)
         .await
@@ -72,7 +26,7 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Some(cli::Commands::Download { video_id }) => {
-            download::download_selected_files(video_id, &config)
+            download::download_selected_files(video_id, &config, &reqwest_client)
                 .await
                 .context("download command failed")?;
         }
