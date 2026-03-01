@@ -14,9 +14,7 @@ this automates the tedious parts of creating my traitor town core videos by doin
 
 ## Usage
 
-No pre-built binaries will be provided, compile them yourself.
-
-make a config.toml file with the following content
+make a config.toml (or pass a file using the --config option) file with the following content
 
 ```toml
 [api]

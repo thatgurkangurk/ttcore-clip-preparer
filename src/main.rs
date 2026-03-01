@@ -17,7 +17,7 @@ use crate::fs::{clean_burned_dirs, ensure_out_dir_exists};
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
-    let config = Config::load().context("failed to load configuration")?;
+    let config = Config::load(cli.config.as_deref()).context("failed to load configuration")?;
     let reqwest_client = reqwest::Client::new();
 
     ensure_out_dir_exists(&config)

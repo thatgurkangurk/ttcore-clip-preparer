@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Parser)]
@@ -5,6 +7,9 @@ use clap::{Parser, Subcommand};
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
+
+    #[arg(short, long, value_name = "FILE")]
+    pub config: Option<PathBuf>,
 }
 
 #[derive(Debug, Subcommand)]

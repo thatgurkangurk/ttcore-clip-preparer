@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
@@ -19,15 +21,18 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn load() -> Result<Config> {
-        let settings = config::Config::builder()
-            .add_source(config::File::with_name("config").required(false))
+    pub fn load(path: Option<&Path>) -> Result<Config> {
+        let file_source = path
+            .map(config::File::from)
+            .unwrap_or_else(|| config::File::with_name("config"))
+            .required(false);
+
+        config::Config::builder()
+            .add_source(file_source)
             .add_source(config::Environment::with_prefix("CONFIG").separator("_"))
             .build()
-            .context("failed to load the config")?;
-
-        settings
+            .context("failed to load the config")?
             .try_deserialize()
-            .context("failed to deserialise the config")
+            .context("failed to deserialize the config")
     }
 }
