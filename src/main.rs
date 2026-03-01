@@ -8,7 +8,7 @@ mod fs;
 
 use clap::Parser;
 
-use crate::cli::Cli;
+use crate::{cli::Cli, fs::clean_output_dir};
 use crate::config::Config;
 use anyhow::{Context, Result};
 
@@ -36,29 +36,7 @@ async fn main() -> Result<()> {
                 .context("failed to burn credits text")?;
         }
         Some(cli::Commands::Clean) => {
-            let path = config.fs.out_dir;
-
-            let mut entries = tokio::fs::read_dir(&path)
-                .await
-                .context("failed to read output directory")?;
-
-            while let Some(entry) = entries
-                .next_entry()
-                .await
-                .context("failed to read directory entry")?
-            {
-                let path = entry.path();
-
-                if path.is_dir() {
-                    tokio::fs::remove_dir_all(&path)
-                        .await
-                        .context("failed to remove directory")?;
-                } else {
-                    tokio::fs::remove_file(&path)
-                        .await
-                        .context("failed to remove file")?;
-                }
-            }
+            clean_output_dir(&config).await.context("failed to clean the output directory")?
         }
         Some(cli::Commands::CleanBurned) => {
             let path = config.fs.out_dir;
