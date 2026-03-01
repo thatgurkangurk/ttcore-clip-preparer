@@ -5,6 +5,39 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
+fn is_video_valid(path: &PathBuf) -> bool {
+    if !path.exists() {
+        return false;
+    }
+
+    // File must be reasonably sized (avoid partial writes)
+    const MIN_SIZE_BYTES: u64 = 1024 * 100; // 100KB
+    if let Ok(metadata) = fs::metadata(path) {
+        if metadata.len() < MIN_SIZE_BYTES {
+            return false;
+        }
+    } else {
+        return false;
+    }
+
+    // Use ffprobe to verify container + streams
+    let status = Command::new("ffprobe")
+        .args([
+            "-v",
+            "error",
+            "-show_entries",
+            "stream=codec_type",
+            "-of",
+            "csv=p=0",
+            path.to_string_lossy().as_ref(),
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+
+    matches!(status, Ok(s) if s.success())
+}
+
 pub fn burn_multiline_text_batch(
     base_folder: PathBuf,
     font_file: PathBuf,
@@ -48,7 +81,9 @@ pub fn burn_multiline_text_batch(
 
                 let output_video = burned_dir.join(filename);
 
-                tasks.push((video_path, output_video, text.clone()));
+                if !is_video_valid(&output_video) {
+                    tasks.push((video_path, output_video, text.clone()));
+                }
             }
         }
     }
