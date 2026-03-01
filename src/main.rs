@@ -3,13 +3,13 @@ mod burner;
 mod cli;
 mod config;
 mod download;
-mod update;
 mod fs;
+mod update;
 
 use clap::Parser;
 
-use crate::{cli::Cli, fs::clean_output_dir};
 use crate::config::Config;
+use crate::{cli::Cli, fs::clean_output_dir};
 use anyhow::{Context, Result};
 
 use crate::fs::{clean_burned_dirs, ensure_out_dir_exists};
@@ -35,9 +35,9 @@ async fn main() -> Result<()> {
             crate::burner::burn_multiline_text_batch(path, config.fs.font_file)
                 .context("failed to burn credits text")?;
         }
-        Some(cli::Commands::Clean) => {
-            clean_output_dir(&config).await.context("failed to clean the output directory")?
-        }
+        Some(cli::Commands::Clean) => clean_output_dir(&config)
+            .await
+            .context("failed to clean the output directory")?,
         Some(cli::Commands::CleanBurned) => {
             let path = config.fs.out_dir;
 
@@ -45,9 +45,7 @@ async fn main() -> Result<()> {
                 .await
                 .context("Failed to clean burned directories")?;
         }
-        Some(cli::Commands::Update) => {
-            crate::update::update()?
-        }
+        Some(cli::Commands::Update) => crate::update::update()?,
         None => {}
     }
 

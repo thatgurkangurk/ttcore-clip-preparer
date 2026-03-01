@@ -2,7 +2,7 @@ use std::path::Path;
 use tokio::fs;
 use tokio::io;
 
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 
 use crate::config::Config;
 
@@ -56,27 +56,27 @@ pub async fn clean_burned_dirs(base_folder: &Path) -> io::Result<()> {
 pub async fn clean_output_dir(config: &Config) -> Result<()> {
     let path = &config.fs.out_dir;
 
-            let mut entries = tokio::fs::read_dir(&path)
+    let mut entries = tokio::fs::read_dir(&path)
+        .await
+        .context("failed to read output directory")?;
+
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .context("failed to read directory entry")?
+    {
+        let path = entry.path();
+
+        if path.is_dir() {
+            tokio::fs::remove_dir_all(&path)
                 .await
-                .context("failed to read output directory")?;
-
-            while let Some(entry) = entries
-                .next_entry()
+                .context("failed to remove directory")?;
+        } else {
+            tokio::fs::remove_file(&path)
                 .await
-                .context("failed to read directory entry")?
-            {
-                let path = entry.path();
+                .context("failed to remove file")?;
+        }
+    }
 
-                if path.is_dir() {
-                    tokio::fs::remove_dir_all(&path)
-                        .await
-                        .context("failed to remove directory")?;
-                } else {
-                    tokio::fs::remove_file(&path)
-                        .await
-                        .context("failed to remove file")?;
-                }
-            }
-
-            Ok(())
+    Ok(())
 }

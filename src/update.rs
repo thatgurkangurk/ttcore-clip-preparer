@@ -4,10 +4,8 @@ pub fn update() -> Result<()> {
     let target = self_update::get_target();
 
     let asset_name = match target {
-        "x86_64-pc-windows-gnu" =>
-            "ttcore-clip-preparer-x86_64-pc-windows-gnu.exe",
-        "x86_64-unknown-linux-gnu" =>
-            "ttcore-clip-preparer-x86_64-unknown-linux-gnu",
+        "x86_64-pc-windows-gnu" => "ttcore-clip-preparer-x86_64-pc-windows-gnu.exe",
+        "x86_64-unknown-linux-gnu" => "ttcore-clip-preparer-x86_64-unknown-linux-gnu",
         _ => panic!("Unsupported target {}", target),
     };
 

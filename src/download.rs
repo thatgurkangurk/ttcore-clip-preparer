@@ -3,14 +3,18 @@ use anyhow::{Context, Result};
 use convert_case::{Case, Casing};
 use futures_util::StreamExt;
 use futures_util::stream;
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
 /// downloads selected files from ttcore.gurkz.me
 ///
 /// selected in this case means the ones marked on the frontend as "selected"
-pub async fn download_selected_files(video_id: i32, config: &Config, client: &reqwest::Client) -> Result<()> {
+pub async fn download_selected_files(
+    video_id: i32,
+    config: &Config,
+    client: &reqwest::Client,
+) -> Result<()> {
     let client = Arc::new(client);
     let base_dir = Arc::new(config.fs.out_dir.clone());
 
@@ -70,8 +74,7 @@ pub async fn download_selected_files(video_id: i32, config: &Config, client: &re
                     let mut info_file = tokio::fs::File::create(&info_path).await?;
                     info_file
                         .write_all(
-                            format!("{}\n@{}", clip.creator.name, clip.creator.username)
-                                .as_bytes(),
+                            format!("{}\n@{}", clip.creator.name, clip.creator.username).as_bytes(),
                         )
                         .await?;
 
