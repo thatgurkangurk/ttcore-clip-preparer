@@ -21,6 +21,9 @@ pub enum Commands {
     BurnCredits {
         #[arg(long)]
         video_id: i32,
+
+        #[arg(long)]
+        crf: Option<i32>,
     },
     Clean,
     CleanBurned,

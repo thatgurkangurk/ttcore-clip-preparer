@@ -30,9 +30,9 @@ async fn main() -> Result<()> {
                 .await
                 .context("download command failed")?;
         }
-        Some(cli::Commands::BurnCredits { video_id }) => {
+        Some(cli::Commands::BurnCredits { video_id, crf }) => {
             let path = config.fs.out_dir.join(video_id.to_string());
-            crate::burner::burn_multiline_text_batch(path, config.fs.font_file)
+            crate::burner::burn_multiline_text_batch(path, config.fs.font_file, crf)
                 .context("failed to burn credits text")?;
         }
         Some(cli::Commands::Clean) => clean_output_dir(&config)

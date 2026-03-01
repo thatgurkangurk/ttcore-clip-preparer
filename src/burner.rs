@@ -5,7 +5,11 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
-pub fn burn_multiline_text_batch(base_folder: PathBuf, font_file: PathBuf) -> Result<()> {
+pub fn burn_multiline_text_batch(
+    base_folder: PathBuf,
+    font_file: PathBuf,
+    crf: Option<i32>,
+) -> Result<()> {
     let mut tasks: Vec<(PathBuf, PathBuf, String)> = Vec::new();
 
     // Collect all video jobs first
@@ -105,35 +109,44 @@ pad=1920:1080:(ow-iw)/2:(oh-ih)/2,\
 
         let error_log_path = output_video.with_extension("mp4.error.log");
 
+        let video_path_str = video_path.to_string_lossy();
+        let output_video_str = output_video.to_string_lossy();
+
+        let mut args = vec![
+            "-y",
+            "-i",
+            video_path_str.as_ref(),
+            "-vf",
+            drawtext_and_scale_filter.as_str(),
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+            "-r",
+            "30",
+            "-map",
+            "0:v:0",
+            "-map",
+            "0:a?",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+        ];
+
+        if let Some(crf) = crf {
+            args.push("-crf");
+            args.push(Box::leak(crf.to_string().into_boxed_str()));
+        }
+
+        args.push(output_video_str.as_ref());
+
         let mut child = Command::new("ffmpeg")
-            .args([
-                "-y",
-                "-i",
-                &video_path.to_string_lossy(),
-                "-vf",
-                &drawtext_and_scale_filter,
-                "-c:v",
-                "libx264",
-                "-preset",
-                "fast",
-                "-crf",
-                "23",
-                "-pix_fmt",
-                "yuv420p",
-                "-movflags",
-                "+faststart",
-                "-r",
-                "30",
-                "-map",
-                "0:v:0",
-                "-map",
-                "0:a?",
-                "-c:a",
-                "aac",
-                "-b:a",
-                "192k",
-                &output_video.to_string_lossy(),
-            ])
+            .args(&args)
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
             .spawn()
