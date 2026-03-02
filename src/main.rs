@@ -51,7 +51,7 @@ async fn main() -> Result<()> {
                 .await
                 .context("Failed to clean burned directories")?;
         }
-        None => {},
+        None => {}
         // already handled above
         Some(cli::Commands::Update) => unreachable!(),
     }
