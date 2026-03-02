@@ -13,7 +13,7 @@ pub fn update() -> Result<()> {
         .repo_owner("thatgurkangurk")
         .repo_name("ttcore-clip-preparer")
         .bin_name("ttcore-clip-preparer")
-        .target(&target)
+        .target(target)
         .bin_name(asset_name)
         .show_download_progress(true)
         .current_version(env!("CARGO_PKG_VERSION"))
