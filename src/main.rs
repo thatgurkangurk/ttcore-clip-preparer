@@ -17,6 +17,12 @@ use crate::fs::{clean_burned_dirs, ensure_out_dir_exists};
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
+
+    if matches!(cli.command, Some(cli::Commands::Update)) {
+        crate::update::update()?;
+        return Ok(());
+    }
+
     let config = Config::load(cli.config.as_deref()).context("failed to load configuration")?;
     let reqwest_client = reqwest::Client::new();
 
@@ -45,8 +51,9 @@ async fn main() -> Result<()> {
                 .await
                 .context("Failed to clean burned directories")?;
         }
-        Some(cli::Commands::Update) => crate::update::update()?,
-        None => {}
+        None => {},
+        // already handled above
+        Some(cli::Commands::Update) => unreachable!(),
     }
 
     Ok(())
