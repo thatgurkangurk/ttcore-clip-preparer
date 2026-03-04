@@ -60,14 +60,14 @@ pub async fn download_selected_files(
                     let author_snake = clip.creator.username.to_case(Case::Snake);
 
                     let video_dir = base_dir
-                        .join(video_id.to_string())
+                        .join(video_id)
                         .join(&author_snake)
                         .join("video");
 
                     tokio::fs::create_dir_all(&video_dir).await?;
 
                     let info_path = base_dir
-                        .join(video_id.to_string())
+                        .join(video_id)
                         .join(&author_snake)
                         .join("info.txt");
 
