@@ -11,7 +11,7 @@ use tokio::io::AsyncWriteExt;
 ///
 /// selected in this case means the ones marked on the frontend as "selected"
 pub async fn download_selected_files(
-    video_id: i32,
+    video_id: &str,
     config: &Config,
     client: &reqwest::Client,
 ) -> Result<()> {

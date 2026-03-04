@@ -13,7 +13,7 @@ pub struct ClipsResponse {
 pub struct Clip {
     pub id: String,
     pub created_by_id: String,
-    pub video_id: i32,
+    pub video_id: String,
     pub url: Url,
     pub title: String,
     pub selected: bool,
@@ -33,7 +33,7 @@ const API_BASE_URL: &str = "https://ttcore.gurkz.me";
 
 pub async fn fetch_clips_for_video(
     client: &reqwest::Client,
-    video_id: i32,
+    video_id: &str,
     config: &Config,
 ) -> Result<ClipsResponse> {
     let response = client

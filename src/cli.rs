@@ -26,11 +26,11 @@ pub struct Cli {
 pub enum Commands {
     Download {
         #[arg(long)]
-        video_id: i32,
+        video_id: String,
     },
     BurnCredits {
         #[arg(long)]
-        video_id: i32,
+        video_id: String,
 
         #[arg(long)]
         crf: Option<i32>,
@@ -57,13 +57,13 @@ impl Commands {
 
         match self {
             Commands::Download { video_id } => {
-                download::download_selected_files(video_id, &config, &client)
+                download::download_selected_files(&video_id, &config, &client)
                     .await
                     .context("download command failed")?;
             }
             Commands::BurnCredits { video_id, crf } => {
                 burner::burn_multiline_text_batch(
-                    config.fs.out_dir.join(video_id.to_string()),
+                    config.fs.out_dir.join(video_id),
                     config.fs.font_file,
                     crf,
                 )
