@@ -56,27 +56,15 @@ pub async fn clean_burned_dirs(base_folder: &Path) -> io::Result<()> {
 pub async fn clean_output_dir(config: &Config) -> Result<()> {
     let path = &config.fs.out_dir;
 
-    let mut entries = tokio::fs::read_dir(&path)
-        .await
-        .context("failed to read output directory")?;
-
-    while let Some(entry) = entries
-        .next_entry()
-        .await
-        .context("failed to read directory entry")?
-    {
-        let path = entry.path();
-
-        if path.is_dir() {
-            tokio::fs::remove_dir_all(&path)
-                .await
-                .context("failed to remove directory")?;
-        } else {
-            tokio::fs::remove_file(&path)
-                .await
-                .context("failed to remove file")?;
-        }
+    if tokio::fs::try_exists(path).await? {
+        tokio::fs::remove_dir_all(path)
+            .await
+            .with_context(|| format!("failed to remove {}", path.display()))?;
     }
+
+    tokio::fs::create_dir_all(path)
+        .await
+        .with_context(|| format!("failed to recreate {}", path.display()))?;
 
     Ok(())
 }
