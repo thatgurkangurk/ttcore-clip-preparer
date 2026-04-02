@@ -42,7 +42,7 @@ pub enum Commands {
 
 impl Commands {
     pub async fn execute(self, config_path: Option<PathBuf>) -> Result<()> {
-        if let Commands::Update = self {
+        if matches!(self, Self::Update) {
             update::update()?;
             return Ok(());
         }
@@ -56,30 +56,30 @@ impl Commands {
         let client = Client::new();
 
         match self {
-            Commands::Download { video_id } => {
+            Self::Download { video_id } => {
                 download::download_selected_files(&video_id, &config, &client)
                     .await
                     .context("download command failed")?;
             }
-            Commands::BurnCredits { video_id, crf } => {
+            Self::BurnCredits { video_id, crf } => {
                 burner::burn_multiline_text_batch(
-                    config.fs.out_dir.join(video_id),
-                    config.fs.font_file,
+                    &config.fs.out_dir.join(video_id),
+                    &config.fs.font_file,
                     crf,
                 )
                 .context("failed to burn credits text")?;
             }
-            Commands::Clean => {
+            Self::Clean => {
                 clean_output_dir(&config)
                     .await
                     .context("failed to clean output directory")?;
             }
-            Commands::CleanBurned => {
+            Self::CleanBurned => {
                 clean_burned_dirs(&config.fs.out_dir)
                     .await
                     .context("failed to clean burned directories")?;
             }
-            Commands::Update => unreachable!(), // already handled
+            Self::Update => unreachable!(), // already handled
         }
 
         Ok(())

@@ -28,18 +28,23 @@ codegen-units = 1
 panic = "abort"
 strip = true
 
+# --- Global Lint Rules ---
 [lints.rust]
 unsafe_code = "warn"
 
 [lints.clippy]
-pedantic = "warn"
-nursery = "warn"
+# Set broad groups to a lower priority (-1) so exceptions can override them
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
 
+# Catch common panic-inducing methods
 unwrap_used = "warn"
 expect_used = "warn"
 todo = "warn"
 unimplemented = "warn"
 
+# --- Lint Exceptions ---
+# (These implicit priority 0 lints will now successfully override the -1 groups above)
 module_name_repetitions = "allow"
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"

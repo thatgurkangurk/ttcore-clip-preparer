@@ -2,16 +2,18 @@ use anyhow::{Context, Result};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
 use std::io::BufReader;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+use std::io::Read;
+
 fn is_video_valid(path: &PathBuf) -> bool {
+    // File must be reasonably sized (avoid partial writes)
+    const MIN_SIZE_BYTES: u64 = 1024 * 100; // 100KB
     if !path.exists() {
         return false;
     }
 
-    // File must be reasonably sized (avoid partial writes)
-    const MIN_SIZE_BYTES: u64 = 1024 * 100; // 100KB
     if let Ok(metadata) = fs::metadata(path) {
         if metadata.len() < MIN_SIZE_BYTES {
             return false;
@@ -38,15 +40,16 @@ fn is_video_valid(path: &PathBuf) -> bool {
     matches!(status, Ok(s) if s.success())
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn burn_multiline_text_batch(
-    base_folder: PathBuf,
-    font_file: PathBuf,
+    base_folder: &PathBuf,
+    font_file: &Path,
     crf: Option<i32>,
 ) -> Result<()> {
     let mut tasks: Vec<(PathBuf, PathBuf, String)> = Vec::new();
 
     // Collect all video jobs first
-    for user_entry in fs::read_dir(&base_folder)? {
+    for user_entry in fs::read_dir(base_folder)? {
         let user_entry = user_entry?;
         let user_path = user_entry.path();
 
@@ -61,9 +64,8 @@ pub fn burn_multiline_text_batch(
             continue;
         }
 
-        let text = match fs::read_to_string(&info_path) {
-            Ok(t) => t,
-            Err(_) => continue,
+        let Ok(text) = fs::read_to_string(&info_path) else {
+            continue;
         };
 
         for video_entry in fs::read_dir(&video_folder)? {
@@ -98,16 +100,16 @@ pub fn burn_multiline_text_batch(
 
     for (video_path, output_video, text) in tasks {
         let escaped_text = text
-            .replace("\\", "\\\\")
-            .replace(":", "\\:")
-            .replace("'", "\\'")
+            .replace('\\', "\\\\")
+            .replace(':', "\\:")
+            .replace('\'', "\\'")
             .trim()
             .to_string();
 
         let font_path = font_file
             .to_string_lossy()
             .to_string()
-            .replace("\\", "\\\\");
+            .replace('\\', "\\\\");
 
         let font_size = 34;
         let line_spacing = 6;
@@ -117,30 +119,28 @@ pub fn burn_multiline_text_batch(
 
         let drawtext_filter = format!(
             "drawtext=\
-fontfile='{}':\
-text='{}':\
+fontfile='{font_path}':\
+text='{escaped_text}':\
 fontcolor=white@0.75:\
-fontsize={}:\
-x=w-(tw+{}):\
-y=h-(th+{}):\
-line_spacing={}:\
-text_align=2",
-            font_path, escaped_text, font_size, padding_right, padding_bottom, line_spacing
+fontsize={font_size}:\
+x=w-(tw+{padding_right}):\
+y=h-(th+{padding_bottom}):\
+line_spacing={line_spacing}:\
+text_align=2"
         );
 
         let drawtext_and_scale_filter = format!(
             "scale=1920:1080:force_original_aspect_ratio=decrease,\
 pad=1920:1080:(ow-iw)/2:(oh-ih)/2,\
-{}",
-            drawtext_filter
+{drawtext_filter}"
         );
 
-        pb.set_message(format!(
-            "Encoding {}",
-            video_path.file_name().unwrap().to_string_lossy()
-        ));
+        let filename = video_path.file_name().map_or_else(
+            || "Unknown File".to_string(),
+            |name| name.to_string_lossy().into_owned(),
+        );
 
-        use std::io::Read;
+        pb.set_message(format!("Encoding {filename}"));
 
         let error_log_path = output_video.with_extension("mp4.error.log");
 
@@ -197,7 +197,7 @@ pad=1920:1080:(ow-iw)/2:(oh-ih)/2,\
         let status = child.wait()?;
 
         if !status.success() {
-            eprintln!("FFmpeg failed for {:?}", video_path);
+            eprintln!("FFmpeg failed for '{}'", video_path.display());
             fs::write(&error_log_path, stderr_output)?;
         }
 

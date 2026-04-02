@@ -6,7 +6,7 @@ pub fn update() -> Result<()> {
     let asset_name = match target {
         "x86_64-pc-windows-gnu" => "ttcore-clip-preparer-x86_64-pc-windows-gnu.exe",
         "x86_64-unknown-linux-gnu" => "ttcore-clip-preparer-x86_64-unknown-linux-gnu",
-        _ => panic!("Unsupported target {}", target),
+        _ => panic!("Unsupported target {target}"),
     };
 
     let status = self_update::backends::github::Update::configure()

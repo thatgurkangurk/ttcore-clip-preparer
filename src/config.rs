@@ -21,10 +21,9 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn load(path: Option<&Path>) -> Result<Config> {
+    pub fn load(path: Option<&Path>) -> Result<Self> {
         let file_source = path
-            .map(config::File::from)
-            .unwrap_or_else(|| config::File::with_name("config"))
+            .map_or_else(|| config::File::with_name("config"), config::File::from)
             .required(false);
 
         config::Config::builder()
