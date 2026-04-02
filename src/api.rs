@@ -18,7 +18,9 @@ pub struct Clip {
     pub title: String,
     pub selected: bool,
     pub created_at: String,
+    pub overridden_profile_data_id: Option<String>,
     pub creator: Creator,
+    pub overridden_profile_data: Option<OverriddenProfileData>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -27,6 +29,14 @@ pub struct Creator {
     pub id: String,
     pub name: String,
     pub username: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OverriddenProfileData {
+    pub id: String,
+    pub line1: String,
+    pub line2: String,
 }
 
 const API_BASE_URL: &str = "https://ttcore.gurkz.me";

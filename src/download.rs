@@ -57,26 +57,30 @@ pub async fn download_selected_files(
 
                     pb.set_message(format!("Downloading {}", clip.title));
 
-                    let author_snake = clip.creator.username.to_case(Case::Snake);
+                    let author_name = if let Some(profile) = &clip.overridden_profile_data {
+                        format!("profile__{}", profile.line1)
+                    } else {
+                        clip.creator.username.clone()
+                    };
 
-                    let video_dir = base_dir
-                        .join(video_id)
-                        .join(&author_snake)
-                        .join("video");
+                    let author_snake = author_name.to_case(Case::Snake);
+
+                    let video_dir = base_dir.join(video_id).join(&author_snake).join("video");
 
                     tokio::fs::create_dir_all(&video_dir).await?;
 
-                    let info_path = base_dir
-                        .join(video_id)
-                        .join(&author_snake)
-                        .join("info.txt");
+                    let info_path = base_dir.join(video_id).join(&author_snake).join("info.txt");
+
+                    let file_content = if let Some(profile) = &clip.overridden_profile_data {
+                        // don't include an '@' symbol if we are using the overridden profile
+                        format!("{}\n{}", profile.line1, profile.line2)
+                    } else {
+                        // include the '@' symbol for the default username
+                        format!("{}\n@{}", clip.creator.name, clip.creator.username)
+                    };
 
                     let mut info_file = tokio::fs::File::create(&info_path).await?;
-                    info_file
-                        .write_all(
-                            format!("{}\n@{}", clip.creator.name, clip.creator.username).as_bytes(),
-                        )
-                        .await?;
+                    info_file.write_all(file_content.as_bytes()).await?;
 
                     let filename = clip
                         .url

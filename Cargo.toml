@@ -22,8 +22,24 @@ debug = 1
 incremental = true
 
 [profile.release]
-opt-level = 3
-lto = "thin"
+opt-level = "s"
+lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+
+[lints.rust]
+unsafe_code = "warn"
+
+[lints.clippy]
+pedantic = "warn"
+nursery = "warn"
+
+unwrap_used = "warn"
+expect_used = "warn"
+todo = "warn"
+unimplemented = "warn"
+
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
