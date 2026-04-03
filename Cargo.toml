@@ -7,7 +7,7 @@ edition = "2024"
 anyhow = "1.0.102"
 clap = { version = "4.5.60", features = ["derive"] }
 colored = "3.1.1"
-config = "0.15.19"
+config = { version = "0.15.19", default-features = false, features = ["toml"] }
 convert_case = "0.11.0"
 futures-util = "0.3.32"
 indicatif = "0.18.4"
