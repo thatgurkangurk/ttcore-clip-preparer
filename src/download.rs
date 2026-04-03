@@ -18,7 +18,7 @@ pub async fn download_selected_files(
     let client = Arc::new(client);
     let base_dir = Arc::new(config.fs.out_dir.clone());
 
-    let clips = crate::api::fetch_clips_for_video(&client, video_id, config)
+    let clips = crate::api::clips::fetch_clips_for_video(&client, video_id, config)
         .await
         .context("failed to fetch clips")?;
 

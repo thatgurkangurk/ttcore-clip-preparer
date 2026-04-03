@@ -1,6 +1,7 @@
 mod api;
 mod burner;
 mod cli;
+mod commands;
 mod config;
 mod download;
 mod fs;
@@ -17,7 +18,7 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     if let Some(command) = cli.command {
-        command.execute(cli.config).await?;
+        crate::commands::execute(command, cli.config).await?;
     }
 
     Ok(())
