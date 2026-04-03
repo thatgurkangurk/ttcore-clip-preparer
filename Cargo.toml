@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.102"
 clap = { version = "4.5.60", features = ["derive"] }
+colored = "3.1.1"
 config = "0.15.19"
 convert_case = "0.11.0"
 futures-util = "0.3.32"
@@ -13,6 +14,7 @@ indicatif = "0.18.4"
 reqwest = { version = "0.13.2", default-features = false, features = ["json", "rustls", "stream"] }
 self_update = { version = "0.42.0", default-features = false, features = ["rustls"] }
 serde = { version = "1.0.228", features = ["derive"] }
+tabled = { version = "0.20.0", features = ["ansi"] }
 tokio = { version = "1.49.0", features = ["fs", "macros", "rt-multi-thread"] }
 url = { version = "2.5.8", features = ["serde"] }
 
