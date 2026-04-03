@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use colored::*;
+use colored::{Colorize};
 use reqwest::Client;
 use tabled::{
     Table, Tabled,
