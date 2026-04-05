@@ -1,6 +1,3 @@
-use crate::api;
-use crate::config::Config;
-use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -38,33 +35,4 @@ pub struct OverriddenProfileData {
     pub id: String,
     pub line1: String,
     pub line2: String,
-}
-
-pub async fn fetch_clips_for_video(
-    client: &reqwest::Client,
-    video_id: &str,
-    config: &Config,
-    selected_only: bool,
-) -> Result<ClipsResponse> {
-    let res = client
-        .get(format!("{}/api/videos/{video_id}/list", api::API_BASE_URL))
-        .header("x-api-key", &config.api.key)
-        .send()
-        .await
-        .context("failed to send request")?
-        .error_for_status()
-        .context("request returned error status")?
-        .json::<ClipsResponse>()
-        .await
-        .context("failed to deserialise ClipsResponse")?;
-
-    let res = if selected_only {
-        ClipsResponse {
-            clips: res.clips.into_iter().filter(|c| c.selected).collect(),
-        }
-    } else {
-        res
-    };
-
-    Ok(res)
 }

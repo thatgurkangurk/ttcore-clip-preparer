@@ -5,10 +5,10 @@ pub mod list_videos;
 pub mod update;
 
 use anyhow::{Context, Result};
-use reqwest::Client;
 use std::path::PathBuf;
 
 use crate::{
+    api::client::ApiClient,
     cli::Commands,
     config::Config,
     fs::{clean_burned_dirs, clean_output_dir, ensure_out_dir_exists},
@@ -26,13 +26,13 @@ pub async fn execute(command: Commands, config_path: Option<PathBuf>) -> Result<
         .await
         .context("failed to ensure output directory exists")?;
 
-    let client = Client::new();
+    let api_client = ApiClient::new(&config);
 
     match command {
-        Commands::ListVideos => list_videos::handle(&client, &config).await?,
-        Commands::ClipCount { video_id } => clip_count::handle(&client, &config, &video_id).await?,
+        Commands::ListVideos => list_videos::handle(&api_client).await?,
+        Commands::ClipCount { video_id } => clip_count::handle(&api_client, &video_id).await?,
         Commands::Download { video_id } => {
-            download::download_command(video_id, &config, &client).await?;
+            download::download_command(video_id, &config, &api_client).await?;
         }
         Commands::BurnCredits { video_id, crf } => {
             burn_credits::burn_credits_cmd(&config, video_id, crf)?;

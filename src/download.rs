@@ -1,3 +1,4 @@
+use crate::api::client::ApiClient;
 use crate::config::Config;
 use anyhow::{Context, Result};
 use convert_case::{Case, Casing};
@@ -82,12 +83,13 @@ async fn download_clip(
 pub async fn download_selected_files(
     video_id: &str,
     config: &Config,
-    client: &reqwest::Client,
+    api_client: &ApiClient,
 ) -> Result<()> {
-    let client = Arc::new(client.clone());
+    let client = Arc::new(api_client.client.clone());
     let base_dir = Arc::new(config.fs.out_dir.clone());
 
-    let selected_clips = crate::api::clips::fetch_clips_for_video(&client, video_id, config, true)
+    let selected_clips = api_client
+        .list_selected_clips_for_video(video_id, true)
         .await
         .context("failed to fetch clips")?
         .clips;

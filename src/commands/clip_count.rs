@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
-use reqwest::Client;
 
-use crate::{api, config::Config};
+use crate::api::client::ApiClient;
 
-pub async fn handle(client: &Client, config: &Config, video_id: &str) -> Result<()> {
-    let res = api::clips::fetch_clips_for_video(client, video_id, config, false)
+pub async fn handle(api_client: &ApiClient, video_id: &str) -> Result<()> {
+    let res = api_client
+        .list_selected_clips_for_video(video_id, false)
         .await
         .context("failed to fetch clips for video")?;
 

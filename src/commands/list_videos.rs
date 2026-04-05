@@ -1,12 +1,11 @@
 use anyhow::Result;
 use colored::Colorize;
-use reqwest::Client;
 use tabled::{
     Table, Tabled,
     settings::{Alignment, Modify, Style, object::Columns},
 };
 
-use crate::config::Config;
+use crate::api::client::ApiClient;
 
 #[derive(Tabled)]
 struct VideoRow {
@@ -15,8 +14,8 @@ struct VideoRow {
     submissions: String,
 }
 
-pub async fn handle(client: &Client, config: &Config) -> Result<()> {
-    let res = crate::api::videos::fetch_videos(client, config).await?;
+pub async fn handle(client: &ApiClient) -> Result<()> {
+    let res = client.list_videos().await?;
 
     let rows: Vec<VideoRow> = res
         .videos

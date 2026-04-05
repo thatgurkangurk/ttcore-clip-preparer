@@ -23,7 +23,7 @@ pub enum Commands {
         #[arg(long)]
         video_id: String,
     },
-    
+
     /// burn credit information directly into the file
     BurnCredits {
         #[arg(long)]

@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::{api::client::ApiClient, config::Config};
 use anyhow::{Context, Result};
 
 use crate::download;
@@ -6,9 +6,9 @@ use crate::download;
 pub async fn download_command(
     video_id: String,
     config: &Config,
-    client: &reqwest::Client,
+    api_client: &ApiClient,
 ) -> Result<()> {
-    download::download_selected_files(&video_id, config, client)
+    download::download_selected_files(&video_id, config, api_client)
         .await
         .context("download command failed")?;
 
