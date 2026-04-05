@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
@@ -13,24 +13,9 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-    /// download all clips marked as selected for a specific video
-    Download {
-        #[arg(long)]
-        video_id: String,
-    },
-    /// get the total number of clips for a specific video
-    ClipCount {
-        #[arg(long)]
-        video_id: String,
-    },
+    /// perform operations on a specific video
+    Video(VideoArgs),
 
-    /// burn credit information directly into the file
-    BurnCredits {
-        #[arg(long)]
-        video_id: String,
-        #[arg(long)]
-        crf: Option<i32>,
-    },
     /// clean the `out` directory (deletes everything !)
     Clean,
 
@@ -42,4 +27,28 @@ pub enum Commands {
 
     /// list all videos created on the frontend
     ListVideos,
+}
+
+#[derive(Debug, Args)]
+pub struct VideoArgs {
+    /// the id of a video
+    pub video_id: String,
+
+    #[command(subcommand)]
+    pub command: VideoCommands,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum VideoCommands {
+    /// download all clips marked as selected for this video
+    Download,
+
+    /// get the total number of clips for this video
+    ClipCount,
+
+    /// burn credit information directly into the file
+    BurnCredits {
+        #[arg(long)]
+        crf: Option<i32>,
+    },
 }
