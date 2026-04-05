@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use crate::{
     api::client::ApiClient,
-    cli::Commands,
+    cli::{Commands, VideoCommands},
     config::Config,
     fs::{clean_burned_dirs, clean_output_dir, ensure_out_dir_exists},
 };
@@ -30,13 +30,23 @@ pub async fn execute(command: Commands, config_path: Option<PathBuf>) -> Result<
 
     match command {
         Commands::ListVideos => list_videos::handle(&api_client).await?,
-        Commands::ClipCount { video_id } => clip_count::handle(&api_client, &video_id).await?,
-        Commands::Download { video_id } => {
-            download::download_command(video_id, &config, &api_client).await?;
+
+        Commands::Video(video_args) => {
+            let video_id = video_args.video_id;
+
+            match video_args.command {
+                VideoCommands::ClipCount => {
+                    clip_count::handle(&api_client, &video_id).await?;
+                }
+                VideoCommands::Download => {
+                    download::download_command(video_id, &config, &api_client).await?;
+                }
+                VideoCommands::BurnCredits { crf } => {
+                    burn_credits::burn_credits_cmd(&config, video_id, crf)?;
+                }
+            }
         }
-        Commands::BurnCredits { video_id, crf } => {
-            burn_credits::burn_credits_cmd(&config, video_id, crf)?;
-        }
+
         Commands::Clean => {
             clean_output_dir(&config)
                 .await
