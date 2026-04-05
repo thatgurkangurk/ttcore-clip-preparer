@@ -5,9 +5,19 @@ use convert_case::{Case, Casing};
 use futures_util::StreamExt;
 use futures_util::stream;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use serde::Deserialize;
+use serde::Serialize;
+use std::borrow::Cow;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
+
+#[derive(Serialize, Deserialize)]
+pub struct UserInfo<'a> {
+    pub user_id: Cow<'a, str>,
+    pub display_name: Cow<'a, str>,
+    pub username: Cow<'a, str>,
+}
 
 async fn download_clip(
     client: &reqwest::Client,
@@ -32,14 +42,27 @@ async fn download_clip(
 
     let author_snake = author_name.to_case(Case::Snake);
     let video_dir = base_dir.join(video_id).join(&author_snake).join("video");
-    let info_path = base_dir.join(video_id).join(&author_snake).join("info.txt");
+    let info_path = base_dir
+        .join(video_id)
+        .join(&author_snake)
+        .join("user_info.toml");
 
     tokio::fs::create_dir_all(&video_dir).await?;
-
-    let file_content = clip.overridden_profile_data.as_ref().map_or_else(
-        || format!("{}\n@{}", clip.creator.name, clip.creator.username),
-        |profile| format!("{}\n{}", profile.line1, profile.line2),
+    let user_info = clip.overridden_profile_data.as_ref().map_or_else(
+        || UserInfo {
+            user_id: Cow::Borrowed(clip.creator.id.as_str()),
+            display_name: Cow::Borrowed(clip.creator.name.as_str()),
+            username: Cow::Owned(format!("@{}", clip.creator.username)),
+        },
+        |profile| UserInfo {
+            user_id: Cow::Owned(format!("profile_{}", profile.id)),
+            display_name: Cow::Borrowed(profile.line1.as_str()),
+            username: Cow::Borrowed(profile.line2.as_str()),
+        },
     );
+
+    let file_content =
+        toml::to_string_pretty(&user_info).context("failed to serialise user info")?;
 
     let mut info_file = tokio::fs::File::create(&info_path).await?;
     info_file.write_all(file_content.as_bytes()).await?;

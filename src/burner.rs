@@ -7,6 +7,8 @@ use std::process::{Command, Stdio};
 
 use std::io::Read;
 
+use crate::download::UserInfo;
+
 fn is_video_valid(path: &PathBuf) -> bool {
     // File must be reasonably sized (avoid partial writes)
     const MIN_SIZE_BYTES: u64 = 1024 * 100; // 100KB
@@ -46,7 +48,7 @@ pub fn burn_multiline_text_batch(
     font_file: &Path,
     crf: Option<i32>,
 ) -> Result<()> {
-    let mut tasks: Vec<(PathBuf, PathBuf, String)> = Vec::new();
+    let mut tasks: Vec<(PathBuf, PathBuf, String, String)> = Vec::new();
 
     // Collect all video jobs first
     for user_entry in fs::read_dir(base_folder)? {
@@ -57,7 +59,7 @@ pub fn burn_multiline_text_batch(
             continue;
         }
 
-        let info_path = user_path.join("info.txt");
+        let info_path = user_path.join("user_info.toml");
         let video_folder = user_path.join("video");
 
         if !info_path.exists() || !video_folder.exists() {
@@ -65,6 +67,11 @@ pub fn burn_multiline_text_batch(
         }
 
         let Ok(text) = fs::read_to_string(&info_path) else {
+            continue;
+        };
+
+        let Ok(user_info) = toml::from_str::<UserInfo>(&text) else {
+            eprintln!("failed to parse: {}", info_path.display());
             continue;
         };
 
@@ -84,7 +91,12 @@ pub fn burn_multiline_text_batch(
                 let output_video = burned_dir.join(filename);
 
                 if !is_video_valid(&output_video) {
-                    tasks.push((video_path, output_video, text.clone()));
+                    tasks.push((
+                        video_path, 
+                        output_video, 
+                        user_info.display_name.clone().into_owned(), 
+                        user_info.username.clone().into_owned()
+                    ));
                 }
             }
         }
@@ -98,8 +110,11 @@ pub fn burn_multiline_text_batch(
         .progress_chars("##-"),
     );
 
-    for (video_path, output_video, text) in tasks {
-        let escaped_text = text
+    for (video_path, output_video, display_name, username) in tasks {
+        // Combine the display name and username with a newline
+        let raw_text = format!("{}\n{}", display_name, username);
+
+        let escaped_text = raw_text
             .replace('\\', "\\\\")
             .replace(':', "\\:")
             .replace('\'', "\\'")
@@ -147,6 +162,8 @@ pad=1920:1080:(ow-iw)/2:(oh-ih)/2,\
         let video_path_str = video_path.to_string_lossy();
         let output_video_str = output_video.to_string_lossy();
 
+        let crf_str = crf.map(|c| c.to_string());
+
         let mut args = vec![
             "-y",
             "-i",
@@ -173,9 +190,9 @@ pad=1920:1080:(ow-iw)/2:(oh-ih)/2,\
             "192k",
         ];
 
-        if let Some(crf) = crf {
+        if let Some(ref crf_val) = crf_str {
             args.push("-crf");
-            args.push(Box::leak(crf.to_string().into_boxed_str()));
+            args.push(crf_val.as_str());
         }
 
         args.push(output_video_str.as_ref());
