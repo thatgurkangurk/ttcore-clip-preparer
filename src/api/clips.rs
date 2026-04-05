@@ -44,20 +44,27 @@ pub async fn fetch_clips_for_video(
     client: &reqwest::Client,
     video_id: &str,
     config: &Config,
+    selected_only: bool,
 ) -> Result<ClipsResponse> {
-    let response = client
+    let res = client
         .get(format!("{}/api/videos/{video_id}/list", api::API_BASE_URL))
         .header("x-api-key", &config.api.key)
         .send()
         .await
         .context("failed to send request")?
         .error_for_status()
-        .context("request returned error status")?;
-
-    let clips = response
+        .context("request returned error status")?
         .json::<ClipsResponse>()
         .await
         .context("failed to deserialise ClipsResponse")?;
 
-    Ok(clips)
+    let res = if selected_only {
+        ClipsResponse {
+            clips: res.clips.into_iter().filter(|c| c.selected).collect(),
+        }
+    } else {
+        res
+    };
+
+    Ok(res)
 }

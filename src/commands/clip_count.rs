@@ -4,7 +4,7 @@ use reqwest::Client;
 use crate::{api, config::Config};
 
 pub async fn handle(client: &Client, config: &Config, video_id: &str) -> Result<()> {
-    let res = api::clips::fetch_clips_for_video(client, video_id, config)
+    let res = api::clips::fetch_clips_for_video(client, video_id, config, false)
         .await
         .context("failed to fetch clips for video")?;
 

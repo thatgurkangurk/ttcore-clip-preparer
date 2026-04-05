@@ -5,7 +5,6 @@ mod commands;
 mod config;
 mod download;
 mod fs;
-mod update;
 
 use clap::Parser;
 

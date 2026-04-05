@@ -4,8 +4,77 @@ use convert_case::{Case, Casing};
 use futures_util::StreamExt;
 use futures_util::stream;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use std::path::Path;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
+
+async fn download_clip(
+    client: &reqwest::Client,
+    clip: &crate::api::clips::Clip,
+    video_id: &str,
+    base_dir: &Path,
+    multi: &MultiProgress,
+) -> anyhow::Result<()> {
+    let pb = multi.add(ProgressBar::new(0));
+    pb.set_style(
+        ProgressStyle::with_template(
+            "{msg:30!} [{bar:40.green/white}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})",
+        )?
+        .progress_chars("=>-"),
+    );
+    pb.set_message(format!("Downloading {}", clip.title));
+
+    let author_name = clip.overridden_profile_data.as_ref().map_or_else(
+        || clip.creator.username.clone(),
+        |profile| format!("profile__{}", profile.line1),
+    );
+
+    let author_snake = author_name.to_case(Case::Snake);
+    let video_dir = base_dir.join(video_id).join(&author_snake).join("video");
+    let info_path = base_dir.join(video_id).join(&author_snake).join("info.txt");
+
+    tokio::fs::create_dir_all(&video_dir).await?;
+
+    let file_content = clip.overridden_profile_data.as_ref().map_or_else(
+        || format!("{}\n@{}", clip.creator.name, clip.creator.username),
+        |profile| format!("{}\n{}", profile.line1, profile.line2),
+    );
+
+    let mut info_file = tokio::fs::File::create(&info_path).await?;
+    info_file.write_all(file_content.as_bytes()).await?;
+
+    let filename = clip
+        .url
+        .path_segments()
+        .and_then(|mut segments| segments.next_back())
+        .filter(|name| !name.is_empty())
+        .unwrap_or("video.mp4");
+
+    let path = video_dir.join(filename);
+
+    let response = client
+        .get(clip.url.clone())
+        .send()
+        .await?
+        .error_for_status()?;
+
+    if let Some(len) = response.content_length() {
+        pb.set_length(len);
+    }
+
+    let mut file = tokio::fs::File::create(&path).await?;
+    let mut stream = response.bytes_stream();
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        file.write_all(&chunk).await?;
+        pb.inc(chunk.len() as u64);
+    }
+
+    pb.finish_with_message(format!("Saved {}", clip.title));
+
+    Ok(())
+}
 
 /// downloads selected files from ttcore.gurkz.me
 ///
@@ -15,19 +84,17 @@ pub async fn download_selected_files(
     config: &Config,
     client: &reqwest::Client,
 ) -> Result<()> {
-    let client = Arc::new(client);
+    let client = Arc::new(client.clone());
     let base_dir = Arc::new(config.fs.out_dir.clone());
 
-    let clips = crate::api::clips::fetch_clips_for_video(&client, video_id, config)
+    let selected_clips = crate::api::clips::fetch_clips_for_video(&client, video_id, config, true)
         .await
-        .context("failed to fetch clips")?;
+        .context("failed to fetch clips")?
+        .clips;
 
-    let selected_clips: Vec<_> = clips.clips.into_iter().filter(|c| c.selected).collect();
     let total_files = selected_clips.len() as u64;
-
     let multi = Arc::new(MultiProgress::new());
 
-    // Global progress bar
     let overall_pb = multi.add(ProgressBar::new(total_files));
     overall_pb.set_style(
         ProgressStyle::with_template(
@@ -36,89 +103,20 @@ pub async fn download_selected_files(
         .progress_chars("##-"),
     );
 
+    let video_id_owned = video_id.to_string();
+
     stream::iter(selected_clips)
         .for_each_concurrent(3, |clip| {
             let client = Arc::clone(&client);
             let base_dir = Arc::clone(&base_dir);
             let multi = Arc::clone(&multi);
             let overall_pb = overall_pb.clone();
+            let video_id = video_id_owned.clone();
 
             async move {
-                if let Err(e) = async {
-                    // Create per-file progress bar
-                    let pb = multi.add(ProgressBar::new(0));
-                    pb.set_style(
-                        ProgressStyle::with_template(
-                            "{msg:30!} [{bar:40.green/white}] {bytes}/{total_bytes} \
-                             ({bytes_per_sec}, {eta})",
-                        )?
-                        .progress_chars("=>-"),
-                    );
-
-                    pb.set_message(format!("Downloading {}", clip.title));
-
-                    let author_name = if let Some(profile) = &clip.overridden_profile_data {
-                        format!("profile__{}", profile.line1)
-                    } else {
-                        clip.creator.username.clone()
-                    };
-
-                    let author_snake = author_name.to_case(Case::Snake);
-
-                    let video_dir = base_dir.join(video_id).join(&author_snake).join("video");
-
-                    tokio::fs::create_dir_all(&video_dir).await?;
-
-                    let info_path = base_dir.join(video_id).join(&author_snake).join("info.txt");
-
-                    let file_content = if let Some(profile) = &clip.overridden_profile_data {
-                        // don't include an '@' symbol if we are using the overridden profile
-                        format!("{}\n{}", profile.line1, profile.line2)
-                    } else {
-                        // include the '@' symbol for the default username
-                        format!("{}\n@{}", clip.creator.name, clip.creator.username)
-                    };
-
-                    let mut info_file = tokio::fs::File::create(&info_path).await?;
-                    info_file.write_all(file_content.as_bytes()).await?;
-
-                    let filename = clip
-                        .url
-                        .path_segments()
-                        .and_then(|mut segments| segments.next_back())
-                        .filter(|name| !name.is_empty())
-                        .unwrap_or("video.mp4");
-
-                    let path = video_dir.join(filename);
-
-                    let response = client
-                        .get(clip.url.clone())
-                        .send()
-                        .await?
-                        .error_for_status()?;
-
-                    // Set content length if known
-                    if let Some(len) = response.content_length() {
-                        pb.set_length(len);
-                    }
-
-                    let mut file = tokio::fs::File::create(&path).await?;
-                    let mut stream = response.bytes_stream();
-
-                    while let Some(chunk) = stream.next().await {
-                        let chunk = chunk?;
-                        file.write_all(&chunk).await?;
-                        pb.inc(chunk.len() as u64);
-                    }
-
-                    pb.finish_with_message(format!("Saved {}", clip.title));
-                    overall_pb.inc(1);
-
-                    Ok::<(), Box<dyn std::error::Error>>(())
-                }
-                .await
-                {
-                    eprintln!("Failed to download {}: {e}", clip.title);
+                match download_clip(&client, &clip, &video_id, &base_dir, &multi).await {
+                    Ok(()) => overall_pb.inc(1),
+                    Err(e) => eprintln!("Failed to download {}: {e:#}", clip.title),
                 }
             }
         })
