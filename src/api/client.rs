@@ -1,9 +1,10 @@
+use super::API_BASE_URL;
 use crate::{
     api::{clips::ClipsResponse, videos::VideoListResponse},
     config::Config,
 };
 use anyhow::{Context, Result};
-use reqwest::Method;
+use reqwest::{Method, RequestBuilder};
 
 pub struct ApiClient {
     pub client: reqwest::Client,
@@ -18,8 +19,8 @@ impl ApiClient {
         }
     }
 
-    fn request(&self, method: reqwest::Method, path: &str) -> reqwest::RequestBuilder {
-        let url = format!("{}{}", super::API_BASE_URL, path);
+    fn request(&self, method: Method, path: &str) -> RequestBuilder {
+        let url = format!("{API_BASE_URL}{path}");
         self.client
             .request(method, url)
             .header("x-api-key", &self.api_key)
@@ -27,10 +28,7 @@ impl ApiClient {
 
     pub async fn list_clips_for_video(&self, video_id: &str) -> Result<ClipsResponse> {
         let res = self
-            .request(
-                reqwest::Method::GET,
-                &format!("/api/videos/{video_id}/list"),
-            )
+            .request(Method::GET, &format!("/api/videos/{video_id}/list"))
             .send()
             .await
             .context("failed to send request")?
