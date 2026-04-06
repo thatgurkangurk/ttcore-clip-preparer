@@ -12,7 +12,7 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct UserInfo<'a> {
     pub user_id: Cow<'a, str>,
     pub display_name: Cow<'a, str>,
