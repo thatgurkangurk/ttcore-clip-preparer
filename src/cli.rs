@@ -1,7 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 
-use crate::burner::intro_text::IntroTextArgs;
+use crate::burner::{intro_text::IntroTextArgs, outro_text::OutroTextArgs};
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None)]
@@ -31,6 +31,7 @@ pub enum Commands {
     ListVideos,
 
     BurnIntroText(IntroTextArgs),
+    BurnOutroText(OutroTextArgs)
 }
 
 #[derive(Debug, Args)]

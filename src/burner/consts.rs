@@ -20,3 +20,6 @@ pub const BASE_SCALE_FILTER: &str =
 
 pub const INTRO_LINE_1: &str = "unless specified";
 pub const INTRO_LINE_2: &str = "all usernames are for discord";
+
+pub const OUTRO_LINE_1: &str = "thank you for watching";
+pub const OUTRO_LINE_2: &str = "please like and subscribe :)";
