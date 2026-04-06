@@ -14,31 +14,36 @@ pub struct ApiClient {
 }
 
 impl ApiClient {
-    pub fn new(config: &Config) -> Self {
-        let base_url = config
-            .api
-            .base_url
-            .clone()
-            .unwrap_or_else(|| Url::parse(API_BASE_URL).expect("valid default url"));
+    pub fn new(config: &Config) -> Result<Self> {
+        let base_url = match &config.api.base_url {
+            Some(url) => url.clone(),
+            None => {
+                Url::parse(API_BASE_URL).context("failed to parse default API_BASE_URL (how?)")?
+            }
+        };
 
-        Self {
+        Ok(Self {
             client: reqwest::Client::new(),
             api_key: config.api.key.clone(),
-            base_url: base_url,
-        }
+            base_url,
+        })
     }
 
-    fn request(&self, method: Method, path: &str) -> RequestBuilder {
-        let url = self.base_url.join(path).expect("invalid path");
+    fn request(&self, method: Method, path: &str) -> Result<RequestBuilder> {
+        let url = self
+            .base_url
+            .join(path)
+            .with_context(|| format!("failed to join URL with path: {path}"))?;
 
-        self.client
+        Ok(self
+            .client
             .request(method, url)
-            .header("x-api-key", &self.api_key)
+            .header("x-api-key", &self.api_key))
     }
 
     pub async fn list_clips_for_video(&self, video_id: &str) -> Result<ClipsResponse> {
         let res = self
-            .request(Method::GET, &format!("/api/videos/{video_id}/list"))
+            .request(Method::GET, &format!("/api/videos/{video_id}/list"))?
             .send()
             .await
             .context("failed to send request")?
@@ -71,7 +76,7 @@ impl ApiClient {
 
     pub async fn list_videos(&self) -> Result<VideoListResponse> {
         let response = self
-            .request(Method::GET, "/api/videos/list")
+            .request(Method::GET, "/api/videos/list")?
             .send()
             .await
             .context("failed to send request")?

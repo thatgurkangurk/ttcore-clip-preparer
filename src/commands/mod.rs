@@ -26,7 +26,7 @@ pub async fn execute(command: Commands, config_path: Option<PathBuf>) -> Result<
         .await
         .context("failed to ensure output directory exists")?;
 
-    let api_client = ApiClient::new(&config);
+    let api_client = ApiClient::new(&config)?;
 
     match command {
         Commands::ListVideos => list_videos::handle(&api_client).await?,

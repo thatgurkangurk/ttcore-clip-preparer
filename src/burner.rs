@@ -112,7 +112,7 @@ pub fn burn_multiline_text_batch(
 
     for (video_path, output_video, display_name, username) in tasks {
         // Combine the display name and username with a newline
-        let raw_text = format!("{}\n{}", display_name, username);
+        let raw_text = format!("{display_name}\n{username}");
 
         let escaped_text = raw_text
             .replace('\\', "\\\\")
