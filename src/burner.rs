@@ -92,10 +92,10 @@ pub fn burn_multiline_text_batch(
 
                 if !is_video_valid(&output_video) {
                     tasks.push((
-                        video_path, 
-                        output_video, 
-                        user_info.display_name.clone().into_owned(), 
-                        user_info.username.clone().into_owned()
+                        video_path,
+                        output_video,
+                        user_info.display_name.clone().into_owned(),
+                        user_info.username.clone().into_owned(),
                     ));
                 }
             }

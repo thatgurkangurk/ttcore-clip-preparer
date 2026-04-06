@@ -5,22 +5,32 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use reqwest::{Method, RequestBuilder};
+use url::Url;
 
 pub struct ApiClient {
     pub client: reqwest::Client,
     api_key: String,
+    base_url: Url,
 }
 
 impl ApiClient {
     pub fn new(config: &Config) -> Self {
+        let base_url = config
+            .api
+            .base_url
+            .clone()
+            .unwrap_or_else(|| Url::parse(API_BASE_URL).expect("valid default url"));
+
         Self {
             client: reqwest::Client::new(),
             api_key: config.api.key.clone(),
+            base_url: base_url,
         }
     }
 
     fn request(&self, method: Method, path: &str) -> RequestBuilder {
-        let url = format!("{API_BASE_URL}{path}");
+        let url = self.base_url.join(path).expect("invalid path");
+
         self.client
             .request(method, url)
             .header("x-api-key", &self.api_key)

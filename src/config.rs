@@ -2,10 +2,12 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
+use url::Url;
 
 #[derive(Debug, Deserialize)]
 pub struct ApiConfig {
     pub key: String,
+    pub base_url: Option<Url>,
 }
 
 #[derive(Debug, Deserialize)]
