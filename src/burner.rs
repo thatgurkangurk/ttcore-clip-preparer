@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use indicatif::{ProgressBar, ProgressStyle};
+use std::borrow::Cow;
 use std::fs;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
@@ -48,9 +49,8 @@ pub fn burn_multiline_text_batch(
     font_file: &Path,
     crf: Option<i32>,
 ) -> Result<()> {
-    let mut tasks: Vec<(PathBuf, PathBuf, String, String)> = Vec::new();
+    let mut tasks: Vec<(PathBuf, PathBuf, UserInfo<'static>)> = Vec::new();
 
-    // Collect all video jobs first
     for user_entry in fs::read_dir(base_folder)? {
         let user_entry = user_entry?;
         let user_path = user_entry.path();
@@ -75,6 +75,12 @@ pub fn burn_multiline_text_batch(
             continue;
         };
 
+        let owned_user_info = UserInfo {
+            user_id: Cow::Owned(user_info.user_id.into_owned()),
+            display_name: Cow::Owned(user_info.display_name.into_owned()),
+            username: Cow::Owned(user_info.username.into_owned()),
+        };
+
         for video_entry in fs::read_dir(&video_folder)? {
             let video_entry = video_entry?;
             let video_path = video_entry.path();
@@ -94,8 +100,11 @@ pub fn burn_multiline_text_batch(
                     tasks.push((
                         video_path,
                         output_video,
-                        user_info.display_name.clone().into_owned(),
-                        user_info.username.clone().into_owned(),
+                        UserInfo {
+                            user_id: owned_user_info.user_id.clone(),
+                            display_name: owned_user_info.display_name.clone(),
+                            username: owned_user_info.username.clone(),
+                        },
                     ));
                 }
             }
@@ -110,9 +119,8 @@ pub fn burn_multiline_text_batch(
         .progress_chars("##-"),
     );
 
-    for (video_path, output_video, display_name, username) in tasks {
-        // Combine the display name and username with a newline
-        let raw_text = format!("{display_name}\n{username}");
+    for (video_path, output_video, user_info) in tasks {
+        let raw_text = format!("{}\n{}", user_info.display_name, user_info.username);
 
         let escaped_text = raw_text
             .replace('\\', "\\\\")
