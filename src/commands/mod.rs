@@ -31,6 +31,10 @@ pub async fn execute(command: Commands, config_path: Option<PathBuf>) -> Result<
     match command {
         Commands::ListVideos => list_videos::handle(&api_client).await?,
 
+        Commands::BurnIntroText(args) => {
+            crate::burner::intro_text::process_intro_text(&args, &config)?;
+        }
+
         Commands::Video(video_args) => {
             let video_id = video_args.video_id;
 

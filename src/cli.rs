@@ -1,6 +1,8 @@
 use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 
+use crate::burner::intro_text::IntroTextArgs;
+
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None)]
 pub struct Cli {
@@ -27,6 +29,8 @@ pub enum Commands {
 
     /// list all videos created on the frontend
     ListVideos,
+
+    BurnIntroText(IntroTextArgs),
 }
 
 #[derive(Debug, Args)]

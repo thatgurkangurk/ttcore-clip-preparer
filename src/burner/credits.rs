@@ -8,9 +8,12 @@ use std::process::{Command, Stdio};
 
 use std::io::Read;
 
+use crate::burner::utils::escape_text;
 use crate::download::UserInfo;
 
-use crate::burner::consts::{FONT_SIZE, LINE_SPACING, PADDING_BOTTOM, PADDING_RIGHT};
+use crate::burner::consts::{
+    BASE_SCALE_FILTER, FONT_SIZE, LINE_SPACING, PADDING_BOTTOM, PADDING_RIGHT,
+};
 
 struct EncodeTask {
     input: PathBuf,
@@ -120,12 +123,7 @@ fn run_ffmpeg(task: &EncodeTask, font_file: &Path, crf: Option<i32>) -> Result<(
         "{}\n{}",
         task.user_info.display_name, task.user_info.username
     );
-    let escaped_text = raw_text
-        .replace('\\', "\\\\")
-        .replace(':', "\\:")
-        .replace('\'', "\\'")
-        .trim()
-        .to_string();
+    let escaped_text = escape_text(&raw_text);
 
     let font_path = font_file.to_string_lossy().replace('\\', "\\\\");
 
@@ -141,11 +139,7 @@ line_spacing={LINE_SPACING}:\
 text_align=2"
     );
 
-    let filter_complex = format!(
-        "scale=1920:1080:force_original_aspect_ratio=decrease,\
-pad=1920:1080:(ow-iw)/2:(oh-ih)/2,\
-{drawtext_filter}"
-    );
+    let filter_complex = format!("{BASE_SCALE_FILTER},{drawtext_filter}");
 
     let mut args = vec![
         "-y".to_string(),
