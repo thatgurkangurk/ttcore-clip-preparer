@@ -1,6 +1,6 @@
-use std::path::PathBuf;
 use anyhow::Result;
 use clap::Args;
+use std::path::PathBuf;
 
 use super::consts::{
     BASE_SCALE_FILTER, FONT_SIZE, INTRO_LINE_1, INTRO_LINE_2, LINE_SPACING, LINE_STAGGER,
@@ -34,7 +34,7 @@ pub fn process_intro_text(args: &IntroTextArgs, config: &Config) -> Result<()> {
     let text_1_line_1_out = switch_sec - slide_sec - stagger_sec;
     let text_1_line_2_in = stagger_sec;
     let text_1_line_2_out = switch_sec - slide_sec;
-    
+
     let text_2_line_1_in = switch_sec;
     let text_2_line_2_in = switch_sec + stagger_sec;
     let duration_max = 99999.0;

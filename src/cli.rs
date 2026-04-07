@@ -31,28 +31,37 @@ pub enum Commands {
     ListVideos,
 
     BurnIntroText(IntroTextArgs),
-    BurnOutroText(OutroTextArgs)
+    BurnOutroText(OutroTextArgs),
 }
 
 #[derive(Debug, Args)]
 pub struct VideoArgs {
-    /// the id of a video
-    pub video_id: String,
-
     #[command(subcommand)]
     pub command: VideoCommands,
 }
 
 #[derive(Debug, Subcommand)]
 pub enum VideoCommands {
+    /// create a new video
+    Create { title: String },
+
     /// download all clips marked as selected for this video
-    Download,
+    Download {
+        /// the id of the video
+        video_id: String,
+    },
 
     /// get the total number of clips for this video
-    ClipCount,
+    ClipCount {
+        /// the id of the video
+        video_id: String,
+    },
 
     /// burn credit information directly into the file
     BurnCredits {
+        /// the id of the video
+        video_id: String,
+
         #[arg(long)]
         crf: Option<i32>,
     },

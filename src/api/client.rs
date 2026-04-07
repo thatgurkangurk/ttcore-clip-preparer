@@ -5,12 +5,26 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use reqwest::{Method, RequestBuilder};
+use serde::{Deserialize, Serialize};
 use url::Url;
+
+#[derive(Debug, Serialize)]
+pub struct CreateNewVideoRequest {
+    pub title: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateNewVideoResponse {
+    pub success: bool,
+
+    #[serde(rename = "videoId")]
+    pub video_id: Option<String>,
+}
 
 pub struct ApiClient {
     pub client: reqwest::Client,
     api_key: String,
-    base_url: Url,
+    pub base_url: Url,
 }
 
 impl ApiClient {
@@ -52,6 +66,25 @@ impl ApiClient {
             .json::<ClipsResponse>()
             .await
             .context("failed to deserialise ClipsResponse")?;
+
+        Ok(res)
+    }
+
+    pub async fn create_video(
+        &self,
+        payload: &CreateNewVideoRequest,
+    ) -> Result<CreateNewVideoResponse> {
+        let res = self
+            .request(Method::POST, "/api/videos/create")?
+            .json(payload)
+            .send()
+            .await
+            .context("failed to send create video request")?
+            .error_for_status()
+            .context("create video request returned an error status")?
+            .json::<CreateNewVideoResponse>()
+            .await
+            .context("failed to deserialise CreateNewVideoResponse")?;
 
         Ok(res)
     }
