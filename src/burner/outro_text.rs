@@ -1,10 +1,10 @@
 use anyhow::Result;
 use clap::Args;
-use tempfile::tempdir;
+use futures_util::StreamExt;
 use std::borrow::Cow;
 use std::path::PathBuf;
+use tempfile::tempdir;
 use tokio::io::AsyncWriteExt;
-use futures_util::StreamExt;
 
 use super::consts::{
     BASE_SCALE_FILTER, FONT_SIZE, LINE_SPACING, LINE_STAGGER, OUTRO_LINE_1, OUTRO_LINE_2,
@@ -26,8 +26,12 @@ pub struct OutroTextArgs {
     pub padding: f64,
 }
 
-pub async fn process_outro_text(args: &OutroTextArgs, config: &Config, api_client: &ApiClient) -> Result<()> {
-        let temp_dir = tempdir()?;
+pub async fn process_outro_text(
+    args: &OutroTextArgs,
+    config: &Config,
+    api_client: &ApiClient,
+) -> Result<()> {
+    let temp_dir = tempdir()?;
     let res = api_client.get_single_clip(&args.clip_id).await?;
 
     let user_info = res.clip.overridden_profile_data.as_ref().map_or_else(
@@ -59,7 +63,6 @@ pub async fn process_outro_text(args: &OutroTextArgs, config: &Config, api_clien
         let chunk = chunk?;
         file.write_all(&chunk).await?;
     }
-
 
     let font_path_str = config.fs.font_file.to_string_lossy().replace('\\', "\\\\");
     let y_bottom = format!("h-({FONT_SIZE}+{PADDING_BOTTOM})");
