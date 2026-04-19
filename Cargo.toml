@@ -1,11 +1,11 @@
 [package]
 name = "ttcore-clip-preparer"
-version = "0.4.3"
+version = "0.5.0"
 edition = "2024"
 
 [dependencies]
 anyhow = "1.0.102"
-clap = { version = "4.5.60", features = ["derive"] }
+clap = { version = "4.6.1", features = ["derive"] }
 colored = "3.1.1"
 config = { version = "0.15.19", default-features = false, features = ["toml"] }
 convert_case = "0.11.0"
@@ -16,7 +16,7 @@ self_update = { version = "0.44.0", default-features = false, features = ["rustl
 serde = { version = "1.0.228", features = ["derive"] }
 tabled = { version = "0.20.0", features = ["ansi"] }
 tempfile = "3.27.0"
-tokio = { version = "1.51.0", features = ["fs", "macros", "rt-multi-thread"] }
+tokio = { version = "1.52.1", features = ["fs", "macros", "rt-multi-thread"] }
 toml = "1.1.2"
 url = { version = "2.5.8", features = ["serde"] }
 
