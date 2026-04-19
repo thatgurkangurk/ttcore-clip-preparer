@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 use std::path::PathBuf;
 
+use crate::api::client::ApiClient;
 use crate::burner::credits::{EncodeTask, run_ffmpeg};
-use crate::config::Config; 
+use crate::config::Config;
 use crate::download::UserInfo;
-use crate::{api::client::ApiClient};
-use anyhow::{Result};
+use anyhow::Result;
 use clap::Args;
 use futures_util::StreamExt;
 use tempfile::tempdir;

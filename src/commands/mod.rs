@@ -39,10 +39,10 @@ pub async fn execute(command: Commands, config_path: Option<PathBuf>) -> Result<
         }
 
         Commands::BurnIntroText(args) => {
-            crate::burner::intro_text::process_intro_text(&args, &config)?;
+            crate::burner::intro_text::process_intro_text(&args, &config, &api_client).await?;
         }
         Commands::BurnOutroText(args) => {
-            crate::burner::outro_text::process_outro_text(&args, &config)?;
+            crate::burner::outro_text::process_outro_text(&args, &config, &api_client).await?;
         }
 
         Commands::Video(video_args) => match video_args.command {
