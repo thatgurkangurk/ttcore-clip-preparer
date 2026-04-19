@@ -1,6 +1,9 @@
 use super::API_BASE_URL;
 use crate::{
-    api::{clips::ClipsResponse, videos::VideoListResponse},
+    api::{
+        clips::{ClipsResponse, GetSingleClipResponse},
+        videos::VideoListResponse,
+    },
     config::Config,
 };
 use anyhow::{Context, Result};
@@ -105,6 +108,23 @@ impl ApiClient {
         };
 
         Ok(res)
+    }
+
+    pub async fn get_single_clip(&self, clip_id: &str) -> Result<GetSingleClipResponse> {
+        let response = self
+            .request(Method::GET, &format!("/api/clips/{clip_id}"))?
+            .send()
+            .await
+            .context("failed to send request")?
+            .error_for_status()
+            .context("request returned error status")?;
+
+        let clip = response
+            .json::<GetSingleClipResponse>()
+            .await
+            .context("failed to deserialise GetSingleClipResponse")?;
+
+        Ok(clip)
     }
 
     pub async fn list_videos(&self) -> Result<VideoListResponse> {

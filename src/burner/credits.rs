@@ -15,10 +15,10 @@ use crate::burner::consts::{
     BASE_SCALE_FILTER, FONT_SIZE, LINE_SPACING, PADDING_BOTTOM, PADDING_RIGHT,
 };
 
-struct EncodeTask {
-    input: PathBuf,
-    output: PathBuf,
-    user_info: UserInfo<'static>,
+pub struct EncodeTask {
+    pub input: PathBuf,
+    pub output: PathBuf,
+    pub user_info: UserInfo<'static>,
 }
 
 fn collect_tasks(base_folder: &Path) -> Result<Vec<EncodeTask>> {
@@ -118,7 +118,7 @@ fn is_video_valid(path: &PathBuf) -> bool {
     matches!(status, Ok(s) if s.success())
 }
 
-fn run_ffmpeg(task: &EncodeTask, font_file: &Path, crf: Option<i32>) -> Result<()> {
+pub fn run_ffmpeg(task: &EncodeTask, font_file: &Path, crf: Option<i32>) -> Result<()> {
     let raw_text = format!(
         "{}\n{}",
         task.user_info.display_name, task.user_info.username

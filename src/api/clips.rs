@@ -8,6 +8,12 @@ pub struct ClipsResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct GetSingleClipResponse {
+    pub clip: Clip,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Clip {
     pub id: String,
     pub created_by_id: String,

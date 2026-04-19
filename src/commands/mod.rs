@@ -1,4 +1,5 @@
 pub mod burn_credits;
+pub mod burn_single_clip;
 pub mod clip_count;
 pub mod download;
 pub mod list_videos;
@@ -31,6 +32,11 @@ pub async fn execute(command: Commands, config_path: Option<PathBuf>) -> Result<
 
     match command {
         Commands::ListVideos => list_videos::handle(&api_client).await?,
+
+        Commands::BurnSingleClip(args) => {
+            crate::commands::burn_single_clip::burn_single_clip_cmd(&config, &args, &api_client)
+                .await?;
+        }
 
         Commands::BurnIntroText(args) => {
             crate::burner::intro_text::process_intro_text(&args, &config)?;
