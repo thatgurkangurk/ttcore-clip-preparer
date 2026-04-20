@@ -5,11 +5,14 @@ use convert_case::{Case, Casing};
 use futures_util::StreamExt;
 use futures_util::stream;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use reqwest::Url;
 use serde::Deserialize;
 use serde::Serialize;
 use std::borrow::Cow;
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
+use tempfile::TempDir;
 use tokio::io::AsyncWriteExt;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -17,6 +20,45 @@ pub struct UserInfo<'a> {
     pub user_id: Cow<'a, str>,
     pub display_name: Cow<'a, str>,
     pub username: Cow<'a, str>,
+}
+
+pub async fn download_file_into_temp_dir(
+    file_url: &Url,
+    temp_dir: &TempDir,
+    client: &reqwest::Client,
+) -> Result<PathBuf> {
+    let file_name = file_url
+        .path_segments()
+        .and_then(|mut segments| segments.next_back())
+        .filter(|name| !name.is_empty())
+        .unwrap_or("downloaded_file.tmp");
+
+    let dest_path = temp_dir.path().join(file_name);
+
+    let mut response = client
+        .get(file_url.as_str())
+        .send()
+        .await
+        .context("failed to send HTTP request")?
+        .error_for_status()
+        .context("server returned an error status code")?;
+
+    let mut dest_file = tokio::fs::File::create(&dest_path)
+        .await
+        .with_context(|| format!("failed to create file at {}", dest_path.display()))?;
+
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .context("error reading response chunk")?
+    {
+        dest_file
+            .write_all(&chunk)
+            .await
+            .context("failed to write chunk to disk")?;
+    }
+
+    Ok(dest_path)
 }
 
 async fn download_clip(

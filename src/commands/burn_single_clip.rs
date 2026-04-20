@@ -4,12 +4,10 @@ use std::path::PathBuf;
 use crate::api::client::ApiClient;
 use crate::burner::credits::{EncodeTask, run_ffmpeg};
 use crate::config::Config;
-use crate::download::UserInfo;
+use crate::download::{UserInfo, download_file_into_temp_dir};
 use anyhow::Result;
 use clap::Args;
-use futures_util::StreamExt;
 use tempfile::tempdir;
-use tokio::io::AsyncWriteExt;
 
 #[derive(Args, Debug, Clone)]
 pub struct BurnSingleClipArgs {
@@ -41,22 +39,8 @@ pub async fn burn_single_clip_cmd(
         },
     );
 
-    let video_path = temp_dir.path().join(format!("{}.mp4", args.clip_id));
-
-    let response = api_client
-        .client
-        .get(res.clip.url)
-        .send()
-        .await?
-        .error_for_status()?;
-
-    let mut file = tokio::fs::File::create(&video_path).await?;
-
-    let mut stream = response.bytes_stream();
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk?;
-        file.write_all(&chunk).await?;
-    }
+    let video_path =
+        download_file_into_temp_dir(&res.clip.url, &temp_dir, &api_client.client).await?;
 
     let encode_task = EncodeTask {
         input: video_path,
