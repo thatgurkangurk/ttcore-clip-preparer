@@ -58,7 +58,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
-          apt install --assume-yes mold
+          sudo apt install --assume-yes mold
 
       # ------------------------
       # Build (Native Cargo)
