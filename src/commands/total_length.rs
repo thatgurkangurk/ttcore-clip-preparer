@@ -1,16 +1,14 @@
 use std::{sync::Arc, time::Duration};
+use tokio::process::Command;
 use tokio::task::JoinSet;
 use anyhow::{Context, Result};
 use indicatif::{ProgressBar, ProgressStyle};
 use tempfile::tempdir;
 use tokio::sync::Semaphore;
-use ffmpeg_next as ffmpeg;
 
 use crate::{api::client::ApiClient, download::download_file_into_temp_dir};
 
 pub async fn handle(api_client: &ApiClient, video_id: &str) -> Result<Duration> {
-    ffmpeg::init().context("failed to initialize ffmpeg")?;
-
     let temp_dir = Arc::new(tempdir()?);
     
     let res = api_client
@@ -46,23 +44,27 @@ pub async fn handle(api_client: &ApiClient, video_id: &str) -> Result<Duration> 
             let _permit = permit; 
 
             let file_path = download_file_into_temp_dir(&url, &temp_dir_clone, &client).await?;
-            let path_for_probe = file_path.clone();
             
-            let duration_secs = tokio::task::spawn_blocking(move || {
-                let format_ctx = ffmpeg::format::input(&path_for_probe)?;
-                
-                let duration_micros = format_ctx.duration();
-                let duration_secs = duration_micros as f64 / ffmpeg::ffi::AV_TIME_BASE as f64;
-                
-                Ok::<f64, anyhow::Error>(duration_secs)
-            })
-            .await
-            .context("ffmpeg task panicked")?
-            .with_context(|| format!("ffmpeg failed to read {}", file_path.display()))?;
+            let output = Command::new("ffprobe")
+                .args([
+                    "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                ])
+                .arg(&file_path)
+                .output()
+                .await?;
+
+            if !output.status.success() {
+                anyhow::bail!("ffprobe failed for {}", file_path.display());
+            }
+
+            let duration_str = String::from_utf8_lossy(&output.stdout);
+            let duration: f64 = duration_str.trim().parse()?;
             
             pb_task.inc(1); 
             
-            Ok::<f64, anyhow::Error>(duration_secs)
+            Ok::<f64, anyhow::Error>(duration)
         });
     }
 

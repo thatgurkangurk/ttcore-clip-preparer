@@ -46,48 +46,6 @@ jobs:
         run: rustup target add ${{ matrix.target }}
 
       # ------------------------
-      # Linux: download ffmpeg
-      # ------------------------
-      - name: Install FFmpeg (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        shell: bash
-        run: |
-          # Download BtbN's pre-compiled Linux shared libraries
-          curl -f -sL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl-shared.tar.xz -o ffmpeg-linux.tar.xz
-          tar -xf ffmpeg-linux.tar.xz
-          
-          # Rename for predictable path
-          EXTRACTED_DIR=$(ls -d ffmpeg-master-latest-linux64-gpl-shared | head -n 1)
-          mv "$EXTRACTED_DIR" ffmpeg-linux
-          
-          # Force ffmpeg-next to use these binaries instead of system pkg-config
-          echo "FFMPEG_DIR=$GITHUB_WORKSPACE/ffmpeg-linux" >> $GITHUB_ENV
-          echo "PKG_CONFIG_PATH=$GITHUB_WORKSPACE/ffmpeg-linux/lib/pkgconfig" >> $GITHUB_ENV
-          
-          # Ensure the linker can find the .so files during the build process
-          echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/ffmpeg-linux/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-
-      # ------------------------
-      # Windows: Download FFmpeg 8.1 Branch Headers
-      # ------------------------
-      - name: Install FFmpeg (Windows)
-        if: matrix.os == 'windows-latest'
-        shell: bash
-        run: |
-          # Added -f so curl fails immediately if the file doesn't exist
-          # Swapped back to 'master-latest' which is guaranteed to exist and has the newest 8.x features
-          curl -f -sL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip -o ffmpeg-win.zip
-          
-          unzip -q ffmpeg-win.zip -d ffmpeg-win
-          
-          # Dynamically find the extracted folder and rename it
-          EXTRACTED_DIR=$(ls -d ffmpeg-win/ffmpeg-* | head -n 1)
-          mv "$EXTRACTED_DIR" ffmpeg-win/ffmpeg
-          
-          # Tell ffmpeg-next where to find the headers and import libraries
-          echo "FFMPEG_DIR=$GITHUB_WORKSPACE/ffmpeg-win/ffmpeg" >> $GITHUB_ENV
-
-      # ------------------------
       # Rust Cache
       # ------------------------
       - name: Rust Cache
