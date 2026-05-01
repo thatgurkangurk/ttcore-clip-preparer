@@ -4,6 +4,8 @@ pre-build = [
     # from https://gist.github.com/cajuntai/ecafd001aeedbe44cc6f9f08987f3873
     "apt-get update",
     "apt-get install --assume-yes --no-install-recommends wget tar",
+    # Install pkg-config and the dynamic C-headers for FFmpeg
+    "apt-get install --assume-yes --no-install-recommends pkg-config libavcodec-dev libavformat-dev libavutil-dev libavfilter-dev libavdevice-dev libswscale-dev libswresample-dev",
 
     # Download mold
     "wget -q https://github.com/rui314/mold/releases/download/v2.40.4/mold-2.40.4-x86_64-linux.tar.gz",
@@ -19,6 +21,7 @@ pre-build = [
     "apt-get update",
     "apt-get install --assume-yes --no-install-recommends clang lld",
     "update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100",
+    "update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100",
 ]
 
 [target.x86_64-unknown-linux-gnu]

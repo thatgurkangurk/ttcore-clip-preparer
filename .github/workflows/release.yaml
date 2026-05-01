@@ -17,20 +17,72 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: Build ${{ matrix.target }}
+    # Dynamically select the runner OS based on the matrix target
+    runs-on: ${{ matrix.os }}
 
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - x86_64-pc-windows-gnu
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-pc-windows-gnu
+            os: windows-latest
 
     steps:
       - uses: actions/checkout@v6
-      - uses: taiki-e/install-action@v2
+
+      # ------------------------
+      # Toolchain: mise & Rust
+      # ------------------------
+      - name: Setup mise
+        uses: jdx/mise-action@v4
         with:
-          tool: cross,cargo-binutils
+          install: true # Triggers installation from .mise.toml / .tool-versions
+
+      - name: Install Rust Target
+        shell: bash
+        run: rustup target add ${{ matrix.target }}
+
+      # ------------------------
+      # Linux: Compile FFmpeg 8.1 from source
+      # ------------------------
+      - name: Install FFmpeg 8.1 (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config yasm nasm libx264-dev libx265-dev
+          
+          # Download, compile, and install exactly FFmpeg 8.1
+          wget -q https://ffmpeg.org/releases/ffmpeg-8.1.tar.xz
+          tar -xf ffmpeg-8.1.tar.xz
+          cd ffmpeg-8.1
+          
+          # Configure for dynamic linking
+          ./configure --prefix=/usr/local --enable-shared --disable-static --enable-gpl --enable-libx264 --enable-libx265
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
+
+      # ------------------------
+      # Windows: Download FFmpeg 8.1 Branch Headers
+      # ------------------------
+      - name: Install FFmpeg 8.1 (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          # Download the specific 8.1 branch from BtbN (compatible with the -gnu MinGW linker)
+          wget -q https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-win64-gpl-shared.zip -O ffmpeg-win.zip
+          unzip -q ffmpeg-win.zip -d ffmpeg-win
+          
+          # Dynamically find the extracted folder and rename it
+          EXTRACTED_DIR=$(ls -d ffmpeg-win/ffmpeg-* | head -n 1)
+          mv "$EXTRACTED_DIR" ffmpeg-win/ffmpeg
+          
+          # Tell ffmpeg-next where to find the headers and import libraries
+          echo "FFMPEG_DIR=$GITHUB_WORKSPACE/ffmpeg-win/ffmpeg" >> $GITHUB_ENV
 
       # ------------------------
       # Rust Cache
@@ -41,17 +93,14 @@ jobs:
           key: ${{ matrix.target }}-fast
           cache-all-crates: true
 
-      - uses: jdx/mise-action@v3
-
       # ------------------------
-      # Build (Fast + Parallel)
+      # Build (Native Cargo)
       # ------------------------
       - name: Build
         shell: bash
         run: |
-          TARGET="${{ matrix.target }}"
-
-          cross build --release --target $TARGET
+          # Cross is gone. Native cargo via mise.
+          cargo build --release --target ${{ matrix.target }}
 
       # ------------------------
       # Package Binary
@@ -69,9 +118,7 @@ jobs:
           fi
 
           OUT="${BIN_NAME}-${TARGET}${EXT}"
-
           cp target/${TARGET}/release/${BIN_NAME}${EXT} $OUT
-
           echo "out_name=$OUT" >> $GITHUB_OUTPUT
 
       - name: Upload Artifact
@@ -90,9 +137,10 @@ jobs:
           fetch-depth: 0
 
       - name: Download artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
+          merge-multiple: true 
 
       # ------------------------
       # Version + Tag Validation
@@ -111,7 +159,7 @@ jobs:
           git fetch --tags
 
           if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag already exists"
+            echo "Tag already exists. Please bump your Cargo.toml version."
             exit 1
           fi
 
@@ -145,6 +193,6 @@ jobs:
           tag_name: v${{ steps.version.outputs.version }}
           name: ttcore-clip-preparer v${{ steps.version.outputs.version }}
           body: ${{ steps.changelog.outputs.changelog }}
-          files: artifacts/**/*
+          files: artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
