@@ -46,25 +46,26 @@ jobs:
         run: rustup target add ${{ matrix.target }}
 
       # ------------------------
-      # Linux: Compile FFmpeg 8.1 from source
+      # Linux: download ffmpeg
       # ------------------------
-      - name: Install FFmpeg 8.1 (Linux)
+      - name: Install FFmpeg (Linux)
         if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config yasm nasm libx264-dev libx265-dev
+          # Download BtbN's pre-compiled Linux shared libraries
+          curl -f -sL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl-shared.tar.xz -o ffmpeg-linux.tar.xz
+          tar -xf ffmpeg-linux.tar.xz
           
-          # Download, compile, and install exactly FFmpeg 8.1
-          wget -q https://ffmpeg.org/releases/ffmpeg-8.1.tar.xz
-          tar -xf ffmpeg-8.1.tar.xz
-          cd ffmpeg-8.1
+          # Rename for predictable path
+          EXTRACTED_DIR=$(ls -d ffmpeg-master-latest-linux64-gpl-shared | head -n 1)
+          mv "$EXTRACTED_DIR" ffmpeg-linux
           
-          # Configure for dynamic linking
-          ./configure --prefix=/usr/local --enable-shared --disable-static --enable-gpl --enable-libx264 --enable-libx265
-          make -j$(nproc)
-          sudo make install
-          sudo ldconfig
+          # Force ffmpeg-next to use these binaries instead of system pkg-config
+          echo "FFMPEG_DIR=$GITHUB_WORKSPACE/ffmpeg-linux" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$GITHUB_WORKSPACE/ffmpeg-linux/lib/pkgconfig" >> $GITHUB_ENV
+          
+          # Ensure the linker can find the .so files during the build process
+          echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/ffmpeg-linux/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
       # ------------------------
       # Windows: Download FFmpeg 8.1 Branch Headers
