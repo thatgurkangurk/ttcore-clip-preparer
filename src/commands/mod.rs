@@ -3,6 +3,7 @@ pub mod burn_single_clip;
 pub mod clip_count;
 pub mod download;
 pub mod list_videos;
+pub mod total_length;
 pub mod update;
 
 use anyhow::{Context, Result};
@@ -85,6 +86,11 @@ pub async fn execute(command: Commands, config_path: Option<PathBuf>) -> Result<
             VideoCommands::ClipCount { video_id } => {
                 clip_count::handle(&api_client, &video_id).await?;
             }
+
+            VideoCommands::TotalLength { video_id } => {
+                total_length::handle(&api_client, &video_id).await?;
+            }
+
             VideoCommands::Download { video_id } => {
                 download::download_command(video_id, &config, &api_client).await?;
             }

@@ -1,6 +1,6 @@
 [package]
 name = "ttcore-clip-preparer"
-version = "0.5.1"
+version = "0.5.2"
 edition = "2024"
 
 [dependencies]
@@ -16,7 +16,7 @@ self_update = { version = "0.44.0", default-features = false, features = ["rustl
 serde = { version = "1.0.228", features = ["derive"] }
 tabled = { version = "0.20.0", features = ["ansi"] }
 tempfile = "3.27.0"
-tokio = { version = "1.52.1", features = ["fs", "macros", "rt-multi-thread"] }
+tokio = { version = "1.52.1", features = ["fs", "macros", "process", "rt-multi-thread"] }
 toml = "1.1.2"
 url = { version = "2.5.8", features = ["serde"] }
 

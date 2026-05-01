@@ -62,6 +62,12 @@ pub enum VideoCommands {
         video_id: String,
     },
 
+    /// get the approximate total length of all selected clips for a video
+    TotalLength {
+        /// the id of the video
+        video_id: String,
+    },
+
     /// burn credit information directly into the file
     BurnCredits {
         /// the id of the video
