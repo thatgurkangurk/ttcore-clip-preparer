@@ -74,7 +74,7 @@ jobs:
         shell: bash
         run: |
           # Download the specific 8.1 branch from BtbN (compatible with the -gnu MinGW linker)
-          wget -q https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-win64-gpl-shared.zip -O ffmpeg-win.zip
+          curl -sL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-win64-gpl-shared.zip -o ffmpeg-win.zip
           unzip -q ffmpeg-win.zip -d ffmpeg-win
           
           # Dynamically find the extracted folder and rename it
