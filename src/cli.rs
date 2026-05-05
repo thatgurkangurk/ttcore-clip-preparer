@@ -56,6 +56,9 @@ pub enum VideoCommands {
         video_id: String,
     },
 
+    /// list all videos created in the frontend
+    List,
+
     /// get the total number of clips for this video
     ClipCount {
         /// the id of the video

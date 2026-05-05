@@ -1,16 +1,16 @@
-use std::{sync::Arc, time::Duration};
-use tokio::process::Command;
-use tokio::task::JoinSet;
 use anyhow::{Context, Result};
 use indicatif::{ProgressBar, ProgressStyle};
+use std::{sync::Arc, time::Duration};
 use tempfile::tempdir;
+use tokio::process::Command;
 use tokio::sync::Semaphore;
+use tokio::task::JoinSet;
 
 use crate::{api::client::ApiClient, download::download_file_into_temp_dir};
 
 pub async fn handle(api_client: &ApiClient, video_id: &str) -> Result<Duration> {
     let temp_dir = Arc::new(tempdir()?);
-    
+
     let res = api_client
         .list_selected_clips_for_video(video_id, true)
         .await
@@ -24,13 +24,17 @@ pub async fn handle(api_client: &ApiClient, video_id: &str) -> Result<Duration> 
     let semaphore = Arc::new(Semaphore::new(5));
 
     let pb = ProgressBar::new(total_clips as u64);
-    pb.set_style(ProgressStyle::default_bar()
-        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")?
-        .progress_chars("#>-"));
+    pb.set_style(
+        ProgressStyle::default_bar()
+            .template(
+                "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})",
+            )?
+            .progress_chars("#>-"),
+    );
     pb.enable_steady_tick(Duration::from_millis(100));
 
     let mut set = JoinSet::new();
-    
+
     for clip in res.clips {
         let client = api_client.client.clone();
         let url = clip.url.clone();
@@ -41,15 +45,18 @@ pub async fn handle(api_client: &ApiClient, video_id: &str) -> Result<Duration> 
         let permit = sem.acquire_owned().await.context("semaphore closed")?;
 
         set.spawn(async move {
-            let _permit = permit; 
+            let _permit = permit;
 
             let file_path = download_file_into_temp_dir(&url, &temp_dir_clone, &client).await?;
-            
+
             let output = Command::new("ffprobe")
                 .args([
-                    "-v", "error",
-                    "-show_entries", "format=duration",
-                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "format=duration",
+                    "-of",
+                    "default=noprint_wrappers=1:nokey=1",
                 ])
                 .arg(&file_path)
                 .output()
@@ -61,9 +68,9 @@ pub async fn handle(api_client: &ApiClient, video_id: &str) -> Result<Duration> 
 
             let duration_str = String::from_utf8_lossy(&output.stdout);
             let duration: f64 = duration_str.trim().parse()?;
-            
-            pb_task.inc(1); 
-            
+
+            pb_task.inc(1);
+
             Ok::<f64, anyhow::Error>(duration)
         });
     }
@@ -75,9 +82,12 @@ pub async fn handle(api_client: &ApiClient, video_id: &str) -> Result<Duration> 
     }
 
     pb.finish_with_message("processing complete");
-    
+
     let total_duration = Duration::from_secs_f64(total_secs);
-    println!("total (approximate) duration (excluding intro, credit text, and stuff like that): {}", format_duration(total_duration));
+    println!(
+        "total (approximate) duration (excluding intro, credit text, and stuff like that): {}",
+        format_duration(total_duration)
+    );
 
     Ok(total_duration)
 }

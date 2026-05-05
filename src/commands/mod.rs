@@ -32,7 +32,11 @@ pub async fn execute(command: Commands, config_path: Option<PathBuf>) -> Result<
     let api_client = ApiClient::new(&config)?;
 
     match command {
-        Commands::ListVideos => list_videos::handle(&api_client).await?,
+        Commands::ListVideos => {
+            println!("don't use this! use `ttcore-clip-preparer video list` instead");
+
+            list_videos::handle(&api_client).await?;
+        }
 
         Commands::BurnSingleClip(args) => {
             crate::commands::burn_single_clip::burn_single_clip_cmd(&config, &args, &api_client)
@@ -47,6 +51,8 @@ pub async fn execute(command: Commands, config_path: Option<PathBuf>) -> Result<
         }
 
         Commands::Video(video_args) => match video_args.command {
+            VideoCommands::List => list_videos::handle(&api_client).await?,
+
             VideoCommands::Create { title } => {
                 let response = api_client
                     .create_video(&CreateNewVideoRequest { title })
