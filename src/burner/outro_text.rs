@@ -1,7 +1,6 @@
+use crate::commands::args::OutroTextArgs;
 use anyhow::Result;
-use clap::Args;
 use std::borrow::Cow;
-use std::path::PathBuf;
 use tempfile::tempdir;
 
 use super::consts::{
@@ -12,17 +11,6 @@ use super::utils::{generate_line_filter, get_video_duration_sec, run_ffmpeg_filt
 use crate::api::client::ApiClient;
 use crate::config::Config;
 use crate::download::{UserInfo, download_file_into_temp_dir};
-
-#[derive(Args, Debug, Clone)]
-pub struct OutroTextArgs {
-    #[arg(short, long)]
-    pub clip_id: String,
-    #[arg(short, long)]
-    pub output: PathBuf,
-    /// optional seconds of padding before the video ends to trigger the outro sequence
-    #[arg(long, default_value_t = 0.0)]
-    pub padding: f64,
-}
 
 pub async fn process_outro_text(
     args: &OutroTextArgs,

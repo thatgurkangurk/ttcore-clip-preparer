@@ -1,10 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 
-use crate::{
-    burner::{intro_text::IntroTextArgs, outro_text::OutroTextArgs},
-    commands::burn_single_clip::BurnSingleClipArgs,
-};
+use crate::commands::args::{BurnSingleClipArgs, IntroTextArgs, OutroTextArgs};
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None)]

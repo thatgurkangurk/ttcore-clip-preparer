@@ -1,8 +1,7 @@
+use crate::commands::args::IntroTextArgs;
 use anyhow::Result;
-use clap::Args;
 use futures_util::StreamExt;
 use std::borrow::Cow;
-use std::path::PathBuf;
 use tempfile::tempdir;
 use tokio::io::AsyncWriteExt;
 
@@ -14,14 +13,6 @@ use super::utils::{generate_line_filter, run_ffmpeg_filter};
 use crate::api::client::ApiClient;
 use crate::config::Config;
 use crate::download::UserInfo;
-
-#[derive(Args, Debug, Clone)]
-pub struct IntroTextArgs {
-    #[arg(long)]
-    pub clip_id: String,
-    #[arg(short, long)]
-    pub output: PathBuf,
-}
 
 pub async fn process_intro_text(
     args: &IntroTextArgs,

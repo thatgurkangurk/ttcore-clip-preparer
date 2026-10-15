@@ -1,21 +1,12 @@
 use std::borrow::Cow;
-use std::path::PathBuf;
 
 use crate::api::client::ApiClient;
 use crate::burner::credits::{EncodeTask, run_ffmpeg};
+use crate::commands::args::BurnSingleClipArgs;
 use crate::config::Config;
 use crate::download::{UserInfo, download_file_into_temp_dir};
 use anyhow::Result;
-use clap::Args;
 use tempfile::tempdir;
-
-#[derive(Args, Debug, Clone)]
-pub struct BurnSingleClipArgs {
-    #[arg(short, long)]
-    pub output: PathBuf,
-    #[arg(long)]
-    pub clip_id: String,
-}
 
 pub async fn burn_single_clip_cmd(
     config: &Config,
