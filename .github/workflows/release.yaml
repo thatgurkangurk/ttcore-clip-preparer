@@ -18,7 +18,6 @@ concurrency:
 jobs:
   build:
     name: Build ${{ matrix.target }}
-    # Dynamically select the runner OS based on the matrix target
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -29,25 +28,21 @@ jobs:
             os: ubuntu-latest
           - target: x86_64-pc-windows-gnu
             os: windows-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
 
     steps:
       - uses: actions/checkout@v6
 
-      # ------------------------
-      # Toolchain: mise & Rust
-      # ------------------------
       - name: Setup mise
         uses: jdx/mise-action@v4
         with:
-          install: true # Triggers installation from .mise.toml / .tool-versions
+          install: true
 
       - name: Install Rust Target
         shell: bash
         run: rustup target add ${{ matrix.target }}
 
-      # ------------------------
-      # Rust Cache
-      # ------------------------
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -60,17 +55,11 @@ jobs:
         run: |
           sudo apt install --assume-yes mold
 
-      # ------------------------
-      # Build (Native Cargo)
-      # ------------------------
       - name: Build
         shell: bash
         run: |
           cargo build --release --target ${{ matrix.target }}
 
-      # ------------------------
-      # Package Binary
-      # ------------------------
       - name: Prepare Artifact
         id: prep
         shell: bash
@@ -106,11 +95,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          merge-multiple: true 
+          merge-multiple: true
 
-      # ------------------------
-      # Version + Tag Validation
-      # ------------------------
       - name: Extract Version
         id: version
         run: |
@@ -129,9 +115,6 @@ jobs:
             exit 1
           fi
 
-      # ------------------------
-      # Changelog
-      # ------------------------
       - name: Generate Changelog
         id: changelog
         run: |
@@ -150,9 +133,7 @@ jobs:
           echo "$LOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      # ------------------------
-      # Release Publish
-      # ------------------------
+
       - name: Create Tag + Release
         uses: softprops/action-gh-release@v2
         with:
