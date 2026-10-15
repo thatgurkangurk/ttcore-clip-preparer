@@ -3,6 +3,7 @@ pub mod burn_credits;
 pub mod burn_single_clip;
 pub mod clip_count;
 pub mod download;
+pub mod ffmpeg;
 pub mod list_videos;
 pub mod total_length;
 pub mod update;
@@ -49,6 +50,12 @@ pub async fn execute(command: Commands, config_path: Option<PathBuf>) -> Result<
         }
         Commands::BurnOutroText(args) => {
             crate::burner::outro_text::process_outro_text(&args, &config, &api_client).await?;
+        }
+
+        Commands::DownloadFfmpeg => {
+            tokio::task::spawn_blocking(crate::commands::ffmpeg::download_ffmpeg_cmd)
+                .await
+                .context("download task panicked")??;
         }
 
         Commands::Video(video_args) => match video_args.command {

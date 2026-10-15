@@ -6,7 +6,10 @@ use tokio::process::Command;
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 
-use crate::{api::client::ApiClient, download::download_file_into_temp_dir};
+use crate::{
+    api::client::ApiClient, commands::ffmpeg::get_local_ffmpeg_paths,
+    download::download_file_into_temp_dir,
+};
 
 pub async fn handle(api_client: &ApiClient, video_id: &str) -> Result<Duration> {
     let temp_dir = Arc::new(tempdir()?);
@@ -49,7 +52,7 @@ pub async fn handle(api_client: &ApiClient, video_id: &str) -> Result<Duration> 
 
             let file_path = download_file_into_temp_dir(&url, &temp_dir_clone, &client).await?;
 
-            let output = Command::new("ffprobe")
+            let output = Command::new(get_local_ffmpeg_paths().ffprobe)
                 .args([
                     "-v",
                     "error",

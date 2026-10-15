@@ -60,7 +60,7 @@ impl ApiClient {
 
     pub async fn list_clips_for_video(&self, video_id: &str) -> Result<ClipsResponse> {
         let res = self
-            .request(Method::GET, &format!("/api/videos/{video_id}/list"))?
+            .request(Method::GET, &format!("/api/ttcore/videos/{video_id}/list"))?
             .send()
             .await
             .context("failed to send request")?
@@ -78,7 +78,7 @@ impl ApiClient {
         payload: &CreateNewVideoRequest,
     ) -> Result<CreateNewVideoResponse> {
         let res = self
-            .request(Method::POST, "/api/videos/create")?
+            .request(Method::POST, "/api/ttcore/videos/create")?
             .json(payload)
             .send()
             .await
@@ -112,7 +112,7 @@ impl ApiClient {
 
     pub async fn get_single_clip(&self, clip_id: &str) -> Result<GetSingleClipResponse> {
         let response = self
-            .request(Method::GET, &format!("/api/clips/{clip_id}"))?
+            .request(Method::GET, &format!("/api/ttcore/clips/{clip_id}"))?
             .send()
             .await
             .context("failed to send request")?
@@ -129,7 +129,7 @@ impl ApiClient {
 
     pub async fn list_videos(&self) -> Result<VideoListResponse> {
         let response = self
-            .request(Method::GET, "/api/videos/list")?
+            .request(Method::GET, "/api/ttcore/videos/list")?
             .send()
             .await
             .context("failed to send request")?

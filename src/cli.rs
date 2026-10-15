@@ -27,6 +27,9 @@ pub enum Commands {
     /// update the tool
     Update,
 
+    /// download ffmpeg to the `data/bin` directory
+    DownloadFfmpeg,
+
     /// list all videos created on the frontend
     ListVideos,
 

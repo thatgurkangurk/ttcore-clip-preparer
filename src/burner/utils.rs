@@ -1,8 +1,11 @@
 use anyhow::{Context, Result};
+use ffmpeg_sidecar::command::FfmpegCommand;
 use std::{
     path::Path,
     process::{Command, Stdio},
 };
+
+use crate::commands::ffmpeg::get_local_ffmpeg_paths;
 
 use super::consts::{FADE_DUR, FONT_SIZE, PADDING_RIGHT, SLIDE_DUR};
 
@@ -47,17 +50,21 @@ pub fn generate_line_filter(
 }
 
 pub fn run_ffmpeg_filter(input: &Path, output: &Path, filter: &str) -> Result<()> {
-    let status = Command::new("ffmpeg")
-        .args([
-            "-y",
-            "-i",
-            &input.to_string_lossy(),
-            "-vf",
-            filter,
-            "-codec:a",
-            "copy",
-            &output.to_string_lossy(),
-        ])
+    let mut ffmpeg_cmd =
+        FfmpegCommand::new_with_path(crate::commands::ffmpeg::get_local_ffmpeg_paths().ffmpeg);
+
+    ffmpeg_cmd
+        .arg("-y")
+        .arg("-i")
+        .arg(input.to_string_lossy().as_ref())
+        .arg("-vf")
+        .arg(filter)
+        .arg("-codec:a")
+        .arg("copy")
+        .arg(output.to_string_lossy().as_ref());
+
+    let status = ffmpeg_cmd
+        .as_inner_mut()
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .status()
@@ -75,7 +82,7 @@ pub fn run_ffmpeg_filter(input: &Path, output: &Path, filter: &str) -> Result<()
 }
 
 pub fn get_video_duration_sec(input: &Path) -> Result<f64> {
-    let output = Command::new("ffprobe")
+    let output = Command::new(get_local_ffmpeg_paths().ffprobe)
         .args([
             "-v",
             "error",

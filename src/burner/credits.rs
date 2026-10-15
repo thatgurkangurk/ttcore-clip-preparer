@@ -1,19 +1,18 @@
 use anyhow::{Context, Result};
+use ffmpeg_sidecar::command::FfmpegCommand;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::borrow::Cow;
 use std::fs;
-use std::io::BufReader;
+use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
-
-use std::io::Read;
-
-use crate::burner::utils::escape_text;
-use crate::download::UserInfo;
+use std::process::Stdio;
 
 use crate::burner::consts::{
     BASE_SCALE_FILTER, FONT_SIZE, LINE_SPACING, PADDING_BOTTOM, PADDING_RIGHT,
 };
+use crate::burner::utils::escape_text;
+use crate::commands::ffmpeg::get_local_ffmpeg_paths;
+use crate::download::UserInfo;
 
 pub struct EncodeTask {
     pub input: PathBuf,
@@ -101,7 +100,7 @@ fn is_video_valid(path: &PathBuf) -> bool {
     }
 
     // Use ffprobe to verify container + streams
-    let status = Command::new("ffprobe")
+    let status = std::process::Command::new(get_local_ffmpeg_paths().ffprobe)
         .args([
             "-v",
             "error",
@@ -141,41 +140,42 @@ text_align=2"
 
     let filter_complex = format!("{BASE_SCALE_FILTER},{drawtext_filter}");
 
-    let mut args = vec![
-        "-y".to_string(),
-        "-i".to_string(),
-        task.input.to_string_lossy().into_owned(),
-        "-vf".to_string(),
-        filter_complex,
-        "-c:v".to_string(),
-        "libx264".to_string(),
-        "-preset".to_string(),
-        "fast".to_string(),
-        "-pix_fmt".to_string(),
-        "yuv420p".to_string(),
-        "-movflags".to_string(),
-        "+faststart".to_string(),
-        "-r".to_string(),
-        "30".to_string(),
-        "-map".to_string(),
-        "0:v:0".to_string(),
-        "-map".to_string(),
-        "0:a?".to_string(),
-        "-c:a".to_string(),
-        "aac".to_string(),
-        "-b:a".to_string(),
-        "192k".to_string(),
-    ];
+    let mut ffmpeg_cmd =
+        FfmpegCommand::new_with_path(crate::commands::ffmpeg::get_local_ffmpeg_paths().ffmpeg);
+
+    ffmpeg_cmd
+        .arg("-y")
+        .arg("-i")
+        .arg(task.input.to_string_lossy().into_owned())
+        .arg("-vf")
+        .arg(filter_complex)
+        .arg("-c:v")
+        .arg("libx264")
+        .arg("-preset")
+        .arg("fast")
+        .arg("-pix_fmt")
+        .arg("yuv420p")
+        .arg("-movflags")
+        .arg("+faststart")
+        .arg("-r")
+        .arg("30")
+        .arg("-map")
+        .arg("0:v:0")
+        .arg("-map")
+        .arg("0:a?")
+        .arg("-c:a")
+        .arg("aac")
+        .arg("-b:a")
+        .arg("192k");
 
     if let Some(crf_val) = crf {
-        args.push("-crf".to_string());
-        args.push(crf_val.to_string());
+        ffmpeg_cmd.arg("-crf").arg(crf_val.to_string());
     }
 
-    args.push(task.output.to_string_lossy().into_owned());
+    ffmpeg_cmd.arg(task.output.to_string_lossy().into_owned());
 
-    let mut child = Command::new("ffmpeg")
-        .args(&args)
+    let mut child = ffmpeg_cmd
+        .as_inner_mut()
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()
