@@ -13,12 +13,22 @@ use super::utils::{generate_line_filter, run_ffmpeg_filter};
 use crate::api::client::ApiClient;
 use crate::config::Config;
 use crate::download::UserInfo;
+use indicatif::{ProgressBar, ProgressStyle};
+use std::time::Duration;
 
 pub async fn process_intro_text(
     args: &IntroTextArgs,
     config: &Config,
     api_client: &ApiClient,
 ) -> Result<()> {
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.green} {msg} [{elapsed_precise}]")?
+            .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"),
+    );
+    pb.set_message("burning...");
+    pb.enable_steady_tick(Duration::from_millis(80));
+
     let temp_dir = tempdir()?;
     let res = api_client.get_single_clip(&args.clip_id).await?;
 
@@ -34,6 +44,8 @@ pub async fn process_intro_text(
             username: Cow::Owned(profile.line2.clone()),
         },
     );
+
+    pb.set_message(format!("burning {}...", res.clip.title));
 
     let font_path_str = config.fs.font_file.to_string_lossy().replace('\\', "\\\\");
     let y_bottom = format!("h-({FONT_SIZE}+{PADDING_BOTTOM})");
@@ -109,5 +121,7 @@ pub async fn process_intro_text(
         file.write_all(&chunk).await?;
     }
 
-    run_ffmpeg_filter(&video_path, &args.output, &drawtext_and_scale_filter)
+    run_ffmpeg_filter(&video_path, &args.output, &drawtext_and_scale_filter, pb)?;
+
+    Ok(())
 }

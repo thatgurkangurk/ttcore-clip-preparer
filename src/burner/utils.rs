@@ -1,9 +1,7 @@
 use anyhow::{Context, Result};
 use ffmpeg_sidecar::command::FfmpegCommand;
-use std::{
-    path::Path,
-    process::{Command, Stdio},
-};
+use indicatif::ProgressBar;
+use std::{path::Path, process::Command};
 
 use crate::commands::ffmpeg::get_local_ffmpeg_paths;
 
@@ -49,7 +47,7 @@ pub fn generate_line_filter(
     )
 }
 
-pub fn run_ffmpeg_filter(input: &Path, output: &Path, filter: &str) -> Result<()> {
+pub fn run_ffmpeg_filter(input: &Path, output: &Path, filter: &str, pb: ProgressBar) -> Result<()> {
     let mut ffmpeg_cmd =
         FfmpegCommand::new_with_path(crate::commands::ffmpeg::get_local_ffmpeg_paths().ffmpeg);
 
@@ -65,18 +63,17 @@ pub fn run_ffmpeg_filter(input: &Path, output: &Path, filter: &str) -> Result<()
 
     let status = ffmpeg_cmd
         .as_inner_mut()
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
         .status()
         .context("failed to spawn ffmpeg process")?;
 
     if status.success() {
-        println!(
-            "✅ video processed successfully! saved as {}",
+        pb.finish_with_message(format!(
+            "video processed successfully! saved as {}",
             output.display()
-        );
+        ));
         Ok(())
     } else {
+        pb.abandon_with_message("ffmpeg failed, see above error for more details");
         anyhow::bail!("❌ ffmpeg encountered an error and exited with a non-zero status code");
     }
 }

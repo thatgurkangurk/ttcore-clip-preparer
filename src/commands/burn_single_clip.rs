@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::time::Duration;
 
 use crate::api::client::ApiClient;
 use crate::burner::credits::{EncodeTask, run_ffmpeg};
@@ -6,6 +7,7 @@ use crate::commands::args::BurnSingleClipArgs;
 use crate::config::Config;
 use crate::download::{UserInfo, download_file_into_temp_dir};
 use anyhow::Result;
+use indicatif::{ProgressBar, ProgressStyle};
 use tempfile::tempdir;
 
 pub async fn burn_single_clip_cmd(
@@ -13,7 +15,14 @@ pub async fn burn_single_clip_cmd(
     args: &BurnSingleClipArgs,
     api_client: &ApiClient,
 ) -> Result<()> {
-    println!("burning");
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.green} {msg} [{elapsed_precise}]")?
+            .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"),
+    );
+    pb.set_message("burning...");
+    pb.enable_steady_tick(Duration::from_millis(80));
+
     let temp_dir = tempdir()?;
     let res = api_client.get_single_clip(&args.clip_id).await?;
 
@@ -30,6 +39,8 @@ pub async fn burn_single_clip_cmd(
         },
     );
 
+    pb.set_message(format!("burning {}...", res.clip.title));
+
     let video_path =
         download_file_into_temp_dir(&res.clip.url, &temp_dir, &api_client.client).await?;
 
@@ -41,7 +52,7 @@ pub async fn burn_single_clip_cmd(
 
     run_ffmpeg(&encode_task, &config.fs.font_file, None)?;
 
-    println!("done");
+    pb.finish_with_message("burned successfully");
 
     Ok(())
 }
